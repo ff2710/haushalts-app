@@ -5,7 +5,9 @@ import { PlusIcon } from '../ui/Icon'
 import { UNDO_DELAY_MS } from '../../constants'
 import BalanceCard from './BalanceCard'
 import History from './History'
+import type { HistoryRow } from './History'
 import EntrySheet from './EntrySheet'
+import FinanceContextMenu from './FinanceContextMenu'
 import { SkeletonBlock } from '../ui/Skeleton'
 import type { Expense } from '../../types'
 
@@ -24,15 +26,15 @@ function FinanceSkeleton() {
 export default function Finance() {
   const { loading, deleteExpense, deleteSettlement } = useApp()
 
-  const [sheetOpen, setSheetOpen]         = useState(false)
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
-  const [hiddenId, setHiddenId]           = useState<string | null>(null)
-  const [undoLabel, setUndoLabel]         = useState<string | null>(null)
+  const [sheetOpen, setSheetOpen]           = useState(false)
+  const [editingExpense, setEditingExpense]  = useState<Expense | null>(null)
+  const [hiddenId, setHiddenId]             = useState<string | null>(null)
+  const [undoLabel, setUndoLabel]           = useState<string | null>(null)
+  const [menu, setMenu]                     = useState<{ row: HistoryRow; rect: DOMRect } | null>(null)
 
   const pendingRef = useRef<{ kind: 'expense' | 'settlement'; id: string } | null>(null)
   const timerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Stable ref so timer callbacks can access current functions without stale closure
   const fns = useRef({ deleteExpense, deleteSettlement })
   fns.current = { deleteExpense, deleteSettlement }
 
@@ -45,7 +47,6 @@ export default function Finance() {
 
   const handleDeleteRequest = useCallback(
     (kind: 'expense' | 'settlement', id: string, label: string) => {
-      // Cancel any previous pending delete first
       if (timerRef.current) clearTimeout(timerRef.current)
 
       pendingRef.current = { kind, id }
@@ -55,8 +56,8 @@ export default function Finance() {
       timerRef.current = setTimeout(() => {
         const p = pendingRef.current
         if (!p) return
-        if (p.kind === 'expense')    void fns.current.deleteExpense(p.id)
-        else                         void fns.current.deleteSettlement(p.id)
+        if (p.kind === 'expense') void fns.current.deleteExpense(p.id)
+        else                      void fns.current.deleteSettlement(p.id)
         pendingRef.current = null
         setHiddenId(null)
         setUndoLabel(null)
@@ -65,19 +66,33 @@ export default function Finance() {
     []
   )
 
-  const handleUndo = useCallback(() => {
-    clearPending()
-  }, [])
+  const handleUndo = useCallback(() => clearPending(), [])
+
+  const handleMenuDelete = useCallback(() => {
+    if (!menu) return
+    const { row } = menu
+    if (row.kind === 'expense') {
+      handleDeleteRequest('expense', row.data.id, row.data.description)
+    } else {
+      handleDeleteRequest('settlement', row.data.id, 'Zahlung')
+    }
+  }, [menu, handleDeleteRequest])
+
+  const handleMenuEdit = useCallback(() => {
+    if (!menu || menu.row.kind !== 'expense') return
+    setEditingExpense(menu.row.data)
+    setSheetOpen(true)
+  }, [menu])
 
   if (loading) return <FinanceSkeleton />
 
   return (
-      <div className="mx-auto max-w-2xl space-y-4 pb-20">
+    <div className="mx-auto max-w-2xl space-y-4 pb-20">
       <div className="space-y-5 pb-24">
         <BalanceCard />
         <History
           onDelete={handleDeleteRequest}
-          onEdit={(expense) => { setEditingExpense(expense); setSheetOpen(true) }}
+          onLongPress={(row, rect) => setMenu({ row, rect })}
           hiddenId={hiddenId}
         />
       </div>
@@ -97,6 +112,19 @@ export default function Finance() {
         onClose={() => { setSheetOpen(false); setEditingExpense(null) }}
         editExpense={editingExpense}
       />
+
+      {/* Context menu */}
+      <AnimatePresence>
+        {menu && (
+          <FinanceContextMenu
+            row={menu.row}
+            rect={menu.rect}
+            onClose={() => setMenu(null)}
+            onEdit={menu.row.kind === 'expense' ? handleMenuEdit : undefined}
+            onDelete={handleMenuDelete}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Undo toast */}
       <AnimatePresence>

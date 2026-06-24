@@ -310,6 +310,14 @@ export default function EntrySheet({
 
   return (
     <BottomSheet open={open} onClose={onClose}>
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-5 top-4 text-[15px] font-semibold text-brand-600"
+      >
+        Fertig
+      </button>
+
             {editExpense ? (
               /* Edit-Modus: Titel statt Tab-Toggle */
               <div className="mx-5 mt-3 flex items-center gap-2">
@@ -358,9 +366,9 @@ export default function EntrySheet({
                       inputMode="decimal" value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder="0,00"
-                      className="w-[240px] bg-transparent text-center text-[64px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
+                      className="w-[240px] bg-transparent text-center text-[52px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
                     />
-                    <span className="text-[32px] font-light text-zinc-300">€</span>
+                    <span className="text-[26px] font-light text-zinc-300">€</span>
                   </div>
                 </div>
 
@@ -423,9 +431,9 @@ export default function EntrySheet({
                       inputMode="decimal" value={payAmount}
                       onChange={(e) => setPayAmount(e.target.value)}
                       placeholder="0,00"
-                      className="w-[240px] bg-transparent text-center text-[64px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
+                      className="w-[240px] bg-transparent text-center text-[52px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
                     />
-                    <span className="text-[32px] font-light text-zinc-300">€</span>
+                    <span className="text-[26px] font-light text-zinc-300">€</span>
                   </div>
                 </div>
 
