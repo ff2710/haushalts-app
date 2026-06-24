@@ -10,8 +10,8 @@ import { animate, motion, AnimatePresence, useMotionValue, useTransform } from '
 import { useApp } from '../../context/AppContext'
 import { useAuth } from '../../context/AuthContext'
 import { CameraIcon, ChevronRightIcon, PlusIcon, TrashIcon } from '../ui/Icon'
-
-type SettingsView = 'list' | 'profile' | 'stores' | 'categories' | 'units'
+import AvatarCircle from '../ui/AvatarCircle'
+import type { SettingsView } from '../../types'
 
 const EINKAUF_ROWS: { key: SettingsView; label: string; sg: string; pl: string }[] = [
   { key: 'stores',     label: 'Läden',      sg: 'Laden',     pl: 'Läden'      },
@@ -69,24 +69,6 @@ function SlideToReset({ onConfirm }: { onConfirm: () => void }) {
   )
 }
 
-// ── Mini-Avatar ────────────────────────────────────────────────────────────────
-function MiniAvatar({ name, avatarUrl, size = 36 }: { name: string; avatarUrl?: string | null; size?: number }) {
-  const initial = name.trim()[0]?.toUpperCase() ?? '?'
-  return (
-    <div
-      className="shrink-0 overflow-hidden rounded-full bg-brand-600/10"
-      style={{ width: size, height: size }}
-    >
-      {avatarUrl ? (
-        <img src={avatarUrl} alt={name} className="h-full w-full object-cover" draggable={false} />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center text-[13px] font-bold text-brand-600">
-          {initial}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ── Hauptkomponente ───────────────────────────────────────────────────────────
 export default function Settings() {
@@ -211,7 +193,7 @@ export default function Settings() {
             className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
           >
             <div className="flex items-center gap-3">
-              <MiniAvatar name={profile?.name ?? 'P'} avatarUrl={profile?.avatar_url} size={36} />
+              <AvatarCircle name={profile?.name ?? 'P'} avatarUrl={profile?.avatar_url} size={36} />
               <span className="text-[15px] font-medium text-zinc-900">
                 {profile?.name ?? 'Profil bearbeiten'}
               </span>
@@ -255,7 +237,7 @@ export default function Settings() {
           {partnerProfile ? (
             <div className={rowCls}>
               <div className="flex items-center gap-3">
-                <MiniAvatar
+                <AvatarCircle
                   name={partnerProfile.name}
                   avatarUrl={partnerProfile.avatar_url}
                   size={40}

@@ -1,4 +1,4 @@
-import type { Expense, Person, Settlement } from '../types'
+import type { Expense, Settlement } from '../types'
 
 const eur = new Intl.NumberFormat('de-DE', {
   style: 'currency',
@@ -101,9 +101,3 @@ export function computeBalance(
   return { paidA, paidB, shareA, shareB, net }
 }
 
-export function personName(
-  p: Person,
-  names: { person_a: string; person_b: string }
-): string {
-  return p === 'A' ? names.person_a : names.person_b
-}

@@ -1,9 +1,11 @@
-// Zentrale TypeScript-Typdefinitionen fuer die Haushalts-App
+export type Person   = 'A' | 'B'
+export type Split    = 'both' | 'A' | 'B'
+export type ViewMode = 'all' | 'store' | 'category'
+export type ItemSort = 'custom' | 'created' | 'alpha'
 
-export type Person = 'A' | 'B'
-export type Split = 'both' | 'A' | 'B'
-export type ViewMode  = 'all' | 'store' | 'category'
-export type ItemSort  = 'custom' | 'created' | 'alpha'
+export type AvatarRole = 'debtor' | 'creditor' | 'neutral'
+
+export type SettingsView = 'list' | 'profile' | 'stores' | 'categories' | 'units'
 
 export interface Profile {
   id: string

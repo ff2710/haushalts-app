@@ -20,12 +20,12 @@ import {
 } from '@dnd-kit/sortable'
 import { useApp } from '../../context/AppContext'
 import type { ShoppingItem, ViewMode, ItemSort } from '../../types'
+import { UNDO_DELAY_MS } from '../../constants'
 import AddItemForm from './AddItemForm'
 import ItemContextMenu, { type PartialInfo } from './ItemContextMenu'
 import SortableItem from './SortableItem'
+import UndoToast from '../ui/UndoToast'
 import { PlusIcon, ChevronRightIcon, StoreIcon, TagIcon, GripIcon, CalendarIcon, NameSortIcon, GroupingIcon, SortingIcon } from '../ui/Icon'
-
-const REMOVE_DELAY = 4000
 
 interface Group {
   key:   string
@@ -58,25 +58,12 @@ interface UndoPartialState {
 }
 
 
-function GripDots() {
-  return (
-    <svg width="9" height="15" viewBox="0 0 9 15" fill="currentColor">
-      <circle cx="2.5" cy="2.5"  r="1.3" />
-      <circle cx="6.5" cy="2.5"  r="1.3" />
-      <circle cx="2.5" cy="7.5"  r="1.3" />
-      <circle cx="6.5" cy="7.5"  r="1.3" />
-      <circle cx="2.5" cy="12.5" r="1.3" />
-      <circle cx="6.5" cy="12.5" r="1.3" />
-    </svg>
-  )
-}
-
 function OverlayRow({ item }: { item: ShoppingItem }) {
   const qty = [item.quantity, item.unit].filter(Boolean).join(' ')
   return (
     <div className="flex cursor-grabbing items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-soft ring-1 ring-black/[0.06]">
       <span className="flex h-7 w-4 items-center justify-center text-zinc-400">
-        <GripDots />
+        <GripIcon size={9} />
       </span>
       <span
         className={
@@ -193,7 +180,7 @@ export default function ShoppingList() {
           setUndoItem((u) => (u?.id === id ? null : u))
           clearPartialUndo.current(id)
           suppressUndoIds.current.delete(id)
-        }, REMOVE_DELAY)
+        }, UNDO_DELAY_MS)
         timers.set(id, t)
         // Regulären Undo-Toast nur zeigen wenn nicht von "Anteil erhalten" ausgelöst
         if (!suppressUndoIds.current.has(it.id)) {
@@ -222,7 +209,7 @@ export default function ShoppingList() {
   // Partial-Undo-Toast nach 3 Sekunden automatisch ausblenden
   useEffect(() => {
     if (!undoPartial) return
-    const t = setTimeout(() => setUndoPartial(null), REMOVE_DELAY)
+    const t = setTimeout(() => setUndoPartial(null), UNDO_DELAY_MS)
     return () => clearTimeout(t)
   }, [undoPartial])
 
@@ -267,7 +254,7 @@ export default function ShoppingList() {
       pendingDeleteId.current = null
       directDeleteTimer.current = null
       setUndoDelete(null)
-    }, REMOVE_DELAY)
+    }, UNDO_DELAY_MS)
   }, [])
 
   const undoDeleteAction = useCallback(() => {
@@ -636,86 +623,19 @@ export default function ShoppingList() {
         <PlusIcon size={26} />
       </button>
 
-      {/* Undo-Toast: Eintrag löschen */}
-      <AnimatePresence>
-        {undoDelete && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            data-no-swipe
-            className="pointer-events-none fixed inset-x-0 z-30 flex justify-center px-4"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 86px)' }}
-          >
-            <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-zinc-900 py-2 pl-4 pr-2 shadow-card-lg">
-              <span className="max-w-[160px] truncate text-[13px] font-medium text-white">
-                „{undoDelete.name}" gelöscht
-              </span>
-              <button
-                onClick={undoDeleteAction}
-                className="rounded-full bg-white/15 px-3 py-1 text-[13px] font-semibold text-white transition-colors duration-150 hover:bg-white/25"
-              >
-                Rückgängig
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Undo-Toast: normales Abhaken */}
-      <AnimatePresence>
-        {undoItem && !undoPartial && !undoDelete && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            data-no-swipe
-            className="pointer-events-none fixed inset-x-0 z-30 flex justify-center px-4"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 86px)' }}
-          >
-            <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-zinc-900 py-2 pl-4 pr-2 shadow-card-lg">
-              <span className="max-w-[160px] truncate text-[13px] font-medium text-white">
-                „{undoItem.name}" eingekauft
-              </span>
-              <button
-                onClick={undoCheck}
-                className="rounded-full bg-white/15 px-3 py-1 text-[13px] font-semibold text-white transition-colors duration-150 hover:bg-white/25"
-              >
-                Rückgängig
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Undo-Toast: Anteil erhalten */}
-      <AnimatePresence>
-        {undoPartial && !undoDelete && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            data-no-swipe
-            className="pointer-events-none fixed inset-x-0 z-30 flex justify-center px-4"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 86px)' }}
-          >
-            <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-zinc-900 py-2 pl-4 pr-2 shadow-card-lg">
-              <span className="max-w-[180px] truncate text-[13px] font-medium text-white">
-                {undoPartial.label}
-              </span>
-              <button
-                onClick={undoPartialAction}
-                className="rounded-full bg-white/15 px-3 py-1 text-[13px] font-semibold text-white transition-colors duration-150 hover:bg-white/25"
-              >
-                Rückgängig
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <UndoToast
+        label={undoDelete ? `„${undoDelete.name}" gelöscht` : null}
+        onUndo={undoDeleteAction}
+      />
+      <UndoToast
+        label={undoItem && !undoPartial && !undoDelete ? `„${undoItem.name}" eingekauft` : null}
+        onUndo={undoCheck}
+      />
+      <UndoToast
+        label={undoPartial && !undoDelete ? undoPartial.label : null}
+        onUndo={undoPartialAction}
+        maxWidth="180px"
+      />
 
       {/* Eingabe-Sheet */}
       <AddItemForm open={sheetOpen} onClose={() => setSheetOpen(false)} />

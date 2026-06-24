@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { motion, AnimatePresence, useAnimation } from 'framer-motion'
+import { motion, useAnimation } from 'framer-motion'
 import { useApp } from '../../context/AppContext'
 import { MoneyFlyIcon, SwapIcon } from '../ui/Icon'
+import AvatarCircle from '../ui/AvatarCircle'
+import BottomSheet from '../ui/BottomSheet'
 import { computeBalance, formatDate, todayISO } from '../../lib/utils'
 import type { Person, Split } from '../../types'
 
@@ -65,28 +67,20 @@ function PersonAvatar({
   selected: boolean
   onClick: () => void
 }) {
-  const initial = name.trim()[0]?.toUpperCase() ?? '?'
   return (
     <button
       type="button"
       onClick={onClick}
       className="flex flex-col items-center gap-1.5 px-4 py-1 transition-all duration-150 active:scale-95"
     >
-      <div className={
-        'h-14 w-14 overflow-hidden rounded-full text-[20px] font-bold transition-all duration-200 ' +
-        (selected ? 'shadow-md ring-4 ring-brand-100' : '')
-      }>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={name} className="h-full w-full object-cover" draggable={false} />
-        ) : (
-          <div className={
-            'flex h-full w-full items-center justify-center ' +
-            (selected ? 'bg-brand-600 text-white' : 'bg-zinc-100 text-zinc-400')
-          }>
-            {initial}
-          </div>
-        )}
-      </div>
+      <AvatarCircle
+        name={name}
+        avatarUrl={avatarUrl}
+        size={56}
+        bgClassName={selected ? 'bg-brand-600' : 'bg-zinc-100'}
+        textClassName={selected ? 'text-white' : 'text-zinc-400'}
+        className={selected ? 'shadow-md ring-4 ring-brand-100 transition-all duration-200' : 'transition-all duration-200'}
+      />
       <span className={
         'text-[13px] font-medium transition-colors duration-200 ' +
         (selected ? 'text-brand-700' : 'text-zinc-400')
@@ -291,37 +285,7 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
   const divider      = <div className="mx-5 h-px bg-zinc-100" />
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onClose}
-            className="fixed inset-0 z-[30] bg-black/35"
-          />
-
-          <motion.div
-            initial={{ y: '110%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '110%' }}
-            transition={{ type: 'spring', stiffness: 420, damping: 38 }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.45 }}
-            onDragEnd={(_, info) => { if (info.offset.y > 90 || info.velocity.y > 600) onClose() }}
-            className="fixed inset-x-0 bottom-0 z-[40] mx-auto max-w-2xl overflow-y-auto rounded-t-3xl bg-white"
-            style={{
-              maxHeight: 'calc(100dvh - 56px)',
-              paddingBottom: 'calc(env(safe-area-inset-bottom) + 64px)',
-              boxShadow: '0 -10px 44px rgba(0,0,0,0.16), 0 -1px 0 rgba(0,0,0,0.05)',
-            }}
-          >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="h-1.5 w-10 cursor-grab rounded-full bg-zinc-200 active:cursor-grabbing" />
-            </div>
-
+    <BottomSheet open={open} onClose={onClose}>
             {/* Type toggle — icons + animation */}
             <div className="mx-5 mt-3 flex rounded-2xl bg-zinc-100 p-1">
               <TypeTab
@@ -471,9 +435,6 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
               </form>
 
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+    </BottomSheet>
   )
 }

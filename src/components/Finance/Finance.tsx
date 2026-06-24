@@ -2,11 +2,10 @@ import { useCallback, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../../context/AppContext'
 import { PlusIcon } from '../ui/Icon'
+import { UNDO_DELAY_MS } from '../../constants'
 import BalanceCard from './BalanceCard'
 import History from './History'
 import EntrySheet from './EntrySheet'
-
-const REMOVE_DELAY = 4000
 
 export default function Finance() {
   const { deleteExpense, deleteSettlement } = useApp()
@@ -46,7 +45,7 @@ export default function Finance() {
         pendingRef.current = null
         setHiddenId(null)
         setUndoLabel(null)
-      }, REMOVE_DELAY)
+      }, UNDO_DELAY_MS)
     },
     []
   )

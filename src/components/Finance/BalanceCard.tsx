@@ -1,20 +1,23 @@
 import { motion } from 'framer-motion'
 import { useApp } from '../../context/AppContext'
+import AvatarCircle from '../ui/AvatarCircle'
 import { computeBalance, formatMoney } from '../../lib/utils'
+import type { AvatarRole } from '../../types'
 
-type AvatarRole = 'debtor' | 'creditor' | 'neutral'
-
-function Avatar({ name, avatarUrl, role }: { name: string; avatarUrl?: string | null; role: AvatarRole }) {
-  const initial = name.trim()[0]?.toUpperCase() ?? '?'
-
+function RoleAvatar({ name, avatarUrl, role }: { name: string; avatarUrl?: string | null; role: AvatarRole }) {
   const circleCls =
     role === 'debtor'   ? 'ring-2 ring-red-400/50' :
     role === 'creditor' ? 'ring-2 ring-emerald-400/50' : ''
 
-  const bgCls =
-    role === 'debtor'   ? 'bg-red-500/25 text-red-200' :
-    role === 'creditor' ? 'bg-emerald-500/25 text-emerald-200' :
-                          'bg-white/[0.08] text-zinc-400'
+  const bgClassName =
+    role === 'debtor'   ? 'bg-red-500/25' :
+    role === 'creditor' ? 'bg-emerald-500/25' :
+                          'bg-white/[0.08]'
+
+  const textClassName =
+    role === 'debtor'   ? 'text-red-200' :
+    role === 'creditor' ? 'text-emerald-200' :
+                          'text-zinc-400'
 
   const nameCls =
     role === 'debtor'   ? 'text-red-300' :
@@ -23,15 +26,14 @@ function Avatar({ name, avatarUrl, role }: { name: string; avatarUrl?: string | 
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className={`h-12 w-12 overflow-hidden rounded-full text-[18px] font-bold transition-all duration-300 ${circleCls}`}>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={name} className="h-full w-full object-cover" draggable={false} />
-        ) : (
-          <div className={`flex h-full w-full items-center justify-center ${bgCls}`}>
-            {initial}
-          </div>
-        )}
-      </div>
+      <AvatarCircle
+        name={name}
+        avatarUrl={avatarUrl}
+        size={48}
+        bgClassName={`${bgClassName} transition-all duration-300`}
+        textClassName={`${textClassName} text-[18px] font-bold`}
+        className={`transition-all duration-300 ${circleCls}`}
+      />
       <span className={`text-[14px] font-semibold transition-colors duration-300 ${nameCls}`}>
         {name}
       </span>
@@ -44,11 +46,9 @@ export default function BalanceCard() {
   const { net } = computeBalance(expenses, settlements)
   const owed = Math.abs(net)
 
-  // net > 0 → B schuldet A (Pfeil zeigt links ←, scaleX -1)
-  // net < 0 → A schuldet B (Pfeil zeigt rechts →, scaleX 1)
   const roleA: AvatarRole = net > 0 ? 'creditor' : net < 0 ? 'debtor' : 'neutral'
   const roleB: AvatarRole = net > 0 ? 'debtor'   : net < 0 ? 'creditor' : 'neutral'
-  const arrowDir = net > 0 ? -1 : 1   // -1 = zeigt nach links
+  const arrowDir = net > 0 ? -1 : 1
   const debtor   = net > 0 ? nameB : nameA
   const creditor = net > 0 ? nameA : nameB
 
@@ -59,10 +59,8 @@ export default function BalanceCard() {
       </p>
 
       <div className="flex items-center justify-between">
-        {/* Person A — immer links */}
-        <Avatar name={nameA} avatarUrl={profileA?.avatar_url} role={roleA} />
+        <RoleAvatar name={nameA} avatarUrl={profileA?.avatar_url} role={roleA} />
 
-        {/* Mitte */}
         {net === 0 ? (
           <div className="flex flex-1 flex-col items-center gap-1.5 px-3">
             <div className="flex w-full items-center gap-1.5">
@@ -97,16 +95,8 @@ export default function BalanceCard() {
           </div>
         )}
 
-        {/* Person B — immer rechts */}
-        <Avatar name={nameB} avatarUrl={profileB?.avatar_url} role={roleB} />
+        <RoleAvatar name={nameB} avatarUrl={profileB?.avatar_url} role={roleB} />
       </div>
-
-      {/*
-        TODO (Roadmap): Zahlungsstatistiken
-        paidA / paidB sind über computeBalance verfügbar und könnten hier als
-        Balken-/Kreisdiagramm visualisiert oder als monatliche Übersicht
-        aufbereitet werden (z. B. "Wer hat diesen Monat mehr ausgegeben?").
-      */}
     </div>
   )
 }

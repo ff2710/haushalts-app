@@ -7,6 +7,7 @@ import {
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import * as profileService from '../services/profileService'
 import type { Profile } from '../types'
 
 interface AuthContextValue {
@@ -29,11 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const loadProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
+    const { data } = await profileService.fetchProfile(userId)
     setProfile(data as Profile | null)
   }
 
@@ -75,33 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const createProfile = async (name: string) => {
     if (!session) return { error: 'Nicht angemeldet' }
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert({ id: session.user.id, name: name.trim(), email: session.user.email ?? null })
-      .select()
-      .single()
-    if (error) return { error: error.message }
-    setProfile(data as Profile)
-    return { error: null }
-  }
-
-  const updateAvatar = async (file: File) => {
-    if (!session) return { error: 'Nicht angemeldet' }
-    const ext  = file.name.split('.').pop() ?? 'jpg'
-    const path = `${session.user.id}/avatar.${ext}`
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(path, file, { upsert: true, contentType: file.type })
-    if (uploadError) return { error: uploadError.message }
-    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-    // Cache-Buster: Timestamp als Query-Param speichern
-    const avatarUrl = `${publicUrl}?t=${Date.now()}`
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ avatar_url: avatarUrl })
-      .eq('id', session.user.id)
-      .select()
-      .single()
+    const { data, error } = await profileService.createProfile(
+      session.user.id,
+      name,
+      session.user.email ?? null
+    )
     if (error) return { error: error.message }
     setProfile(data as Profile)
     return { error: null }
@@ -109,12 +84,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfileName = async (name: string) => {
     if (!session) return { error: 'Nicht angemeldet' }
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ name: name.trim() })
-      .eq('id', session.user.id)
-      .select()
-      .single()
+    const { data, error } = await profileService.updateProfileName(session.user.id, name)
+    if (error) return { error: error.message }
+    setProfile(data as Profile)
+    return { error: null }
+  }
+
+  const updateAvatar = async (file: File) => {
+    if (!session) return { error: 'Nicht angemeldet' }
+    const { publicUrl, error: uploadError } = await profileService.uploadAvatar(
+      session.user.id,
+      file
+    )
+    if (uploadError) return { error: uploadError.message }
+    if (!publicUrl) return { error: 'Avatar-Upload fehlgeschlagen' }
+    const { data, error } = await profileService.updateAvatarUrl(session.user.id, publicUrl)
     if (error) return { error: error.message }
     setProfile(data as Profile)
     return { error: null }

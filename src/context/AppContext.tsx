@@ -11,6 +11,9 @@ import {
 import { supabase } from '../lib/supabase'
 import { toastEmitter } from '../lib/toastEmitter'
 import { useAuth } from './AuthContext'
+import { REALTIME_CHANNEL, DEFAULT_UNITS } from '../constants'
+import * as shoppingService from '../services/shoppingService'
+import * as financeService from '../services/financeService'
 import type {
   Category,
   Expense,
@@ -24,56 +27,46 @@ import type {
 const dbErr = (msg: string) => toastEmitter.emit(msg)
 
 interface AppContextValue {
-  loading:    boolean
-  settings:   Settings | null
-  myRole:     'A' | 'B' | null
-  nameA:      string
-  nameB:      string
-  profileA:   Profile | null
-  profileB:   Profile | null
-  stores:     Store[]
-  categories: Category[]
-  items:      ShoppingItem[]
-  expenses:   Expense[]
+  loading:     boolean
+  settings:    Settings | null
+  myRole:      'A' | 'B' | null
+  nameA:       string
+  nameB:       string
+  profileA:    Profile | null
+  profileB:    Profile | null
+  stores:      Store[]
+  categories:  Category[]
+  items:       ShoppingItem[]
+  expenses:    Expense[]
   settlements: Settlement[]
-  units:      string[]
+  units:       string[]
 
-  // Onboarding
-  linkCurrentUser: () => Promise<void>
+  linkCurrentUser:  () => Promise<void>
 
-  // Einheiten
   addUnit:    (name: string) => Promise<void>
   removeUnit: (name: string) => Promise<void>
 
-  // Läden
   addStore:    (name: string) => Promise<Store | null>
   deleteStore: (id: string) => Promise<void>
 
-  // Kategorien
   addCategory:    (name: string) => Promise<Category | null>
   deleteCategory: (id: string) => Promise<void>
 
-  // Einkaufsartikel
   addItem:      (data: Partial<ShoppingItem> & { name: string }) => Promise<void>
   updateItem:   (id: string, patch: Partial<ShoppingItem>) => Promise<void>
   deleteItem:   (id: string) => Promise<void>
   reorderItems: (ordered: ShoppingItem[]) => Promise<void>
 
-  // Ausgaben
   addExpense:    (data: Omit<Expense, 'id' | 'created_at'>) => Promise<void>
   deleteExpense: (id: string) => Promise<void>
 
-  // Ausgleich
   addSettlement:    (data: Omit<Settlement, 'id' | 'created_at'>) => Promise<void>
   deleteSettlement: (id: string) => Promise<void>
 
-  // Reset
   resetHousehold: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined)
-
-const DEFAULT_UNITS = ['Stück', 'g', 'kg', 'L', 'ml', 'cl']
 
 function upsert<T extends { id: string }>(arr: T[], row: T): T[] {
   const idx = arr.findIndex((x) => x.id === row.id)
@@ -89,6 +82,7 @@ function removeById<T extends { id: string }>(arr: T[], id: string): T[] {
 
 const byPosition = (a: { position: number }, b: { position: number }) =>
   a.position - b.position
+
 const byDateDesc = (
   a: { date: string; created_at: string },
   b: { date: string; created_at: string },
@@ -97,16 +91,16 @@ const byDateDesc = (
 export function AppProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth()
 
-  const [loading, setLoading]       = useState(true)
-  const [settings, setSettings]     = useState<Settings | null>(null)
-  const [profileA, setProfileA]     = useState<Profile | null>(null)
-  const [profileB, setProfileB]     = useState<Profile | null>(null)
-  const [stores, setStores]         = useState<Store[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [items, setItems]           = useState<ShoppingItem[]>([])
-  const [expenses, setExpenses]     = useState<Expense[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [settings, setSettings]       = useState<Settings | null>(null)
+  const [profileA, setProfileA]       = useState<Profile | null>(null)
+  const [profileB, setProfileB]       = useState<Profile | null>(null)
+  const [stores, setStores]           = useState<Store[]>([])
+  const [categories, setCategories]   = useState<Category[]>([])
+  const [items, setItems]             = useState<ShoppingItem[]>([])
+  const [expenses, setExpenses]       = useState<Expense[]>([])
   const [settlements, setSettlements] = useState<Settlement[]>([])
-  const [units, setUnits]           = useState<string[]>(DEFAULT_UNITS)
+  const [units, setUnits]             = useState<string[]>([...DEFAULT_UNITS])
 
   const myRole = useMemo<'A' | 'B' | null>(() => {
     if (!session || !settings) return null
@@ -124,57 +118,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [profileB, settings],
   )
 
-  const loadProfiles = useCallback(async (s: Settings) => {
+  const loadProfilesForSettings = useCallback(async (s: Settings) => {
     const ids = [s.person_a_id, s.person_b_id].filter(Boolean) as string[]
     if (ids.length === 0) return
-    const { data } = await supabase.from('profiles').select('*').in('id', ids)
+    const { data } = await shoppingService.fetchProfiles(ids)
     if (!data) return
     setProfileA(data.find((p: Profile) => p.id === s.person_a_id) ?? null)
     setProfileB(data.find((p: Profile) => p.id === s.person_b_id) ?? null)
   }, [])
 
   const loadUnitsFromDB = useCallback(async () => {
-    const { data } = await supabase.from('units').select('name').order('position')
+    const { data } = await shoppingService.fetchUnits()
     if (data && data.length > 0) setUnits(data.map((u: { name: string }) => u.name))
   }, [])
 
   const loadAll = useCallback(async () => {
     setLoading(true)
-    const [s, st, cat, it, ex, se] = await Promise.all([
-      supabase.from('settings').select('*').eq('id', 1).maybeSingle(),
-      supabase.from('stores').select('*').order('position'),
-      supabase.from('categories').select('*').order('position'),
-      supabase.from('shopping_items').select('*').order('position'),
-      supabase.from('expenses').select('*').order('date', { ascending: false }),
-      supabase.from('settlements').select('*').order('date', { ascending: false }),
+    const [expensesRes, settlementsRes] = await Promise.all([
+      financeService.fetchExpenses(),
+      financeService.fetchSettlements(),
     ])
+    const { settings: s, stores: st, categories: cat, items: it, units: un } =
+      await shoppingService.fetchInitialData()
+
     if (s.data) {
       setSettings(s.data as Settings)
-      await loadProfiles(s.data as Settings)
+      await loadProfilesForSettings(s.data as Settings)
     }
     if (st.data)  setStores(st.data as Store[])
     if (cat.data) setCategories(cat.data as Category[])
     if (it.data)  setItems(it.data as ShoppingItem[])
-    if (ex.data)  setExpenses(ex.data as Expense[])
-    if (se.data)  setSettlements(se.data as Settlement[])
-    await loadUnitsFromDB()
+    if (expensesRes.data)    setExpenses(expensesRes.data as Expense[])
+    if (settlementsRes.data) setSettlements(settlementsRes.data as Settlement[])
+    if (un.data && un.data.length > 0) setUnits(un.data.map((u: { name: string }) => u.name))
     setLoading(false)
-  }, [loadUnitsFromDB, loadProfiles])
+  }, [loadProfilesForSettings])
 
   const channelReady = useRef(false)
   useEffect(() => {
-    loadAll()
+    void loadAll()
     if (channelReady.current) return
     channelReady.current = true
 
-    const channel = supabase.channel('haushalt-realtime')
+    const channel = supabase.channel(REALTIME_CHANNEL)
 
     channel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, (p) => {
         if (p.eventType === 'DELETE') return
         const s = p.new as Settings
         setSettings(s)
-        void loadProfiles(s)
+        void loadProfilesForSettings(s)
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (p) => {
         if (p.eventType === 'DELETE') return
@@ -211,45 +204,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
       supabase.removeChannel(channel)
       channelReady.current = false
     }
-  }, [loadAll, loadUnitsFromDB, loadProfiles])
+  }, [loadAll, loadUnitsFromDB, loadProfilesForSettings])
 
-  // Verknüpft den aktuell eingeloggten Nutzer als Person A oder B in settings
   const linkCurrentUser = async () => {
     if (!session) return
     const uid = session.user.id
 
     if (!settings) {
-      // Erster Nutzer überhaupt — settings-Zeile anlegen
-      const { data } = await supabase
-        .from('settings')
-        .insert({ id: 1, person_a: '', person_b: '', person_a_id: uid })
-        .select()
-        .single()
+      const { data } = await shoppingService.createSettingsRow(uid)
       if (data) {
         setSettings(data as Settings)
-        await loadProfiles(data as Settings)
+        await loadProfilesForSettings(data as Settings)
       }
     } else if (!settings.person_a_id) {
-      const { data } = await supabase
-        .from('settings')
-        .update({ person_a_id: uid })
-        .eq('id', 1)
-        .select()
-        .single()
+      const { data } = await shoppingService.linkUserToSettings(uid, 'a')
       if (data) {
         setSettings(data as Settings)
-        await loadProfiles(data as Settings)
+        await loadProfilesForSettings(data as Settings)
       }
     } else if (!settings.person_b_id) {
-      const { data } = await supabase
-        .from('settings')
-        .update({ person_b_id: uid })
-        .eq('id', 1)
-        .select()
-        .single()
+      const { data } = await shoppingService.linkUserToSettings(uid, 'b')
       if (data) {
         setSettings(data as Settings)
-        await loadProfiles(data as Settings)
+        await loadProfilesForSettings(data as Settings)
       }
     }
   }
@@ -259,19 +236,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const t = name.trim()
     if (!t || units.includes(t)) return
     setUnits((prev) => [...prev, t])
-    const { error } = await supabase.from('units').insert({ name: t, position: units.length })
-    if (error) { setUnits((prev) => prev.filter((u) => u !== t)); dbErr('Einheit konnte nicht gespeichert werden.') }
+    const { error } = await shoppingService.addUnit(t, units.length)
+    if (error) {
+      setUnits((prev) => prev.filter((u) => u !== t))
+      dbErr('Einheit konnte nicht gespeichert werden.')
+    }
   }
+
   const removeUnit = async (name: string) => {
     setUnits((prev) => prev.filter((u) => u !== name))
-    const { error } = await supabase.from('units').delete().eq('name', name)
-    if (error) { setUnits((prev) => [...prev, name]); dbErr('Einheit konnte nicht gelöscht werden.') }
+    const { error } = await shoppingService.deleteUnit(name)
+    if (error) {
+      setUnits((prev) => [...prev, name])
+      dbErr('Einheit konnte nicht gelöscht werden.')
+    }
   }
 
   // ----- Läden -----
   const addStore = async (name: string): Promise<Store | null> => {
     const position = (stores.at(-1)?.position ?? 0) + 1
-    const { data, error } = await supabase.from('stores').insert({ name, position }).select().single()
+    const { data, error } = await shoppingService.addStore(name, position)
     if (error) { dbErr('Laden konnte nicht gespeichert werden.'); return null }
     if (data) {
       setStores((a) => upsert(a, data as Store).sort(byPosition))
@@ -279,17 +263,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     return null
   }
+
   const deleteStore = async (id: string) => {
     const prev = stores.find((s) => s.id === id)
     setStores((a) => removeById(a, id))
-    const { error } = await supabase.from('stores').delete().eq('id', id)
-    if (error) { if (prev) setStores((a) => upsert(a, prev).sort(byPosition)); dbErr('Laden konnte nicht gelöscht werden.') }
+    const { error } = await shoppingService.deleteStore(id)
+    if (error) {
+      if (prev) setStores((a) => upsert(a, prev).sort(byPosition))
+      dbErr('Laden konnte nicht gelöscht werden.')
+    }
   }
 
   // ----- Kategorien -----
   const addCategory = async (name: string): Promise<Category | null> => {
     const position = (categories.at(-1)?.position ?? 0) + 1
-    const { data, error } = await supabase.from('categories').insert({ name, position }).select().single()
+    const { data, error } = await shoppingService.addCategory(name, position)
     if (error) { dbErr('Kategorie konnte nicht gespeichert werden.'); return null }
     if (data) {
       setCategories((a) => upsert(a, data as Category).sort(byPosition))
@@ -297,11 +285,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     return null
   }
+
   const deleteCategory = async (id: string) => {
     const prev = categories.find((c) => c.id === id)
     setCategories((a) => removeById(a, id))
-    const { error } = await supabase.from('categories').delete().eq('id', id)
-    if (error) { if (prev) setCategories((a) => upsert(a, prev).sort(byPosition)); dbErr('Kategorie konnte nicht gelöscht werden.') }
+    const { error } = await shoppingService.deleteCategory(id)
+    if (error) {
+      if (prev) setCategories((a) => upsert(a, prev).sort(byPosition))
+      dbErr('Kategorie konnte nicht gelöscht werden.')
+    }
   }
 
   // ----- Einkaufsartikel -----
@@ -316,74 +308,70 @@ export function AppProvider({ children }: { children: ReactNode }) {
       is_done:     false,
       position,
     }
-    const { data: row, error } = await supabase.from('shopping_items').insert(payload).select().single()
+    const { data: row, error } = await shoppingService.addShoppingItem(payload)
     if (error) { dbErr('Artikel konnte nicht hinzugefügt werden.'); return }
     if (row) setItems((a) => upsert(a, row as ShoppingItem).sort(byPosition))
   }
+
   const updateItem = async (id: string, patch: Partial<ShoppingItem>) => {
     setItems((a) => a.map((x) => (x.id === id ? { ...x, ...patch } : x)).sort(byPosition))
-    const { error } = await supabase.from('shopping_items').update(patch).eq('id', id)
+    const { error } = await shoppingService.updateShoppingItem(id, patch)
     if (error) dbErr('Änderung konnte nicht gespeichert werden.')
   }
+
   const deleteItem = async (id: string) => {
     setItems((a) => removeById(a, id))
-    const { error } = await supabase.from('shopping_items').delete().eq('id', id)
+    const { error } = await shoppingService.deleteShoppingItem(id)
     if (error) dbErr('Artikel konnte nicht gelöscht werden.')
   }
+
   const reorderItems = async (ordered: ShoppingItem[]) => {
     const withPos = ordered.map((it, i) => ({ ...it, position: i }))
     setItems((a) => {
       const map = new Map(withPos.map((x) => [x.id, x]))
       return a.map((x) => map.get(x.id) ?? x).sort(byPosition)
     })
-    const results = await Promise.all(
-      withPos.map((it) =>
-        supabase.from('shopping_items').update({ position: it.position }).eq('id', it.id),
-      ),
+    const results = await shoppingService.reorderShoppingItems(
+      withPos.map((it) => ({ id: it.id, position: it.position }))
     )
     if (results.some((r) => r.error)) dbErr('Reihenfolge konnte nicht gespeichert werden.')
   }
 
   // ----- Ausgaben -----
   const addExpense = async (data: Omit<Expense, 'id' | 'created_at'>) => {
-    const { data: row, error } = await supabase.from('expenses').insert(data).select().single()
+    const { data: row, error } = await financeService.addExpense(data)
     if (error) { dbErr('Ausgabe konnte nicht gespeichert werden.'); return }
     if (row) setExpenses((a) => upsert(a, row as Expense).sort(byDateDesc))
   }
+
   const deleteExpense = async (id: string) => {
     setExpenses((a) => removeById(a, id))
-    const { error } = await supabase.from('expenses').delete().eq('id', id)
+    const { error } = await financeService.deleteExpense(id)
     if (error) dbErr('Ausgabe konnte nicht gelöscht werden.')
+  }
+
+  // ----- Ausgleich -----
+  const addSettlement = async (data: Omit<Settlement, 'id' | 'created_at'>) => {
+    const { data: row, error } = await financeService.addSettlement(data)
+    if (error) { dbErr('Zahlung konnte nicht gespeichert werden.'); return }
+    if (row) setSettlements((a) => upsert(a, row as Settlement).sort(byDateDesc))
+  }
+
+  const deleteSettlement = async (id: string) => {
+    setSettlements((a) => removeById(a, id))
+    const { error } = await financeService.deleteSettlement(id)
+    if (error) dbErr('Zahlung konnte nicht gelöscht werden.')
   }
 
   // ----- Reset -----
   const resetHousehold = async () => {
-    await Promise.all([
-      supabase.from('shopping_items').delete().not('id', 'is', null),
-      supabase.from('expenses').delete().not('id', 'is', null),
-      supabase.from('settlements').delete().not('id', 'is', null),
-      supabase.from('stores').delete().not('id', 'is', null),
-      supabase.from('categories').delete().not('id', 'is', null),
-      supabase.from('units').delete().not('name', 'is', null),
-    ])
+    await shoppingService.deleteAllHouseholdData()
     setItems([])
     setExpenses([])
     setSettlements([])
     setStores([])
     setCategories([])
-    setUnits(DEFAULT_UNITS)
-  }
-
-  // ----- Ausgleich -----
-  const addSettlement = async (data: Omit<Settlement, 'id' | 'created_at'>) => {
-    const { data: row, error } = await supabase.from('settlements').insert(data).select().single()
-    if (error) { dbErr('Zahlung konnte nicht gespeichert werden.'); return }
-    if (row) setSettlements((a) => upsert(a, row as Settlement).sort(byDateDesc))
-  }
-  const deleteSettlement = async (id: string) => {
-    setSettlements((a) => removeById(a, id))
-    const { error } = await supabase.from('settlements').delete().eq('id', id)
-    if (error) dbErr('Zahlung konnte nicht gelöscht werden.')
+    setUnits([...DEFAULT_UNITS])
   }
 
   const value: AppContextValue = {

@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../../context/AppContext'
 import type { ShoppingItem } from '../../types'
@@ -87,7 +87,7 @@ export default function ItemContextMenu({
     const q = quantity.trim()
     if (q !== (item.quantity ?? '')) updateItem(item.id, { quantity: q || null })
   }
-  const onUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const onUnitChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setUnit(e.target.value)
     updateItem(item.id, { unit: e.target.value || null })
   }

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useApp } from '../../context/AppContext'
+import { GripIcon } from '../ui/Icon'
 import type { ShoppingItem } from '../../types'
 
 const LONG_PRESS_MS = 450
@@ -79,14 +80,7 @@ export default function SortableItem({
           className="flex h-7 w-4 shrink-0 cursor-grab touch-none items-center justify-center text-zinc-300 transition-colors duration-150 hover:text-zinc-500 active:cursor-grabbing"
           aria-label="Verschieben"
         >
-          <svg width="9" height="15" viewBox="0 0 9 15" fill="currentColor">
-            <circle cx="2.5" cy="2.5"  r="1.3" />
-            <circle cx="6.5" cy="2.5"  r="1.3" />
-            <circle cx="2.5" cy="7.5"  r="1.3" />
-            <circle cx="6.5" cy="7.5"  r="1.3" />
-            <circle cx="2.5" cy="12.5" r="1.3" />
-            <circle cx="6.5" cy="12.5" r="1.3" />
-          </svg>
+          <GripIcon size={9} />
         </button>
       )}
 

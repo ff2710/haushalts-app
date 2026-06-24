@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../../context/AppContext'
+import BottomSheet from '../ui/BottomSheet'
 import type { ShoppingItem } from '../../types'
 
 export default function EditItemForm({
@@ -11,13 +11,12 @@ export default function EditItemForm({
   onClose: () => void
 }) {
   const { updateItem, stores, categories, units } = useApp()
-  const [name, setName]           = useState('')
-  const [quantity, setQuantity]   = useState('')
-  const [unit, setUnit]           = useState('')
-  const [storeId, setStoreId]     = useState('')
-  const [categoryId, setCatId]    = useState('')
+  const [name, setName]         = useState('')
+  const [quantity, setQuantity] = useState('')
+  const [unit, setUnit]         = useState('')
+  const [storeId, setStoreId]   = useState('')
+  const [categoryId, setCatId]  = useState('')
 
-  // Felder mit dem aktuellen Artikel vorbefüllen
   useEffect(() => {
     if (item) {
       setName(item.name)
@@ -58,107 +57,71 @@ export default function EditItemForm({
     'text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-[box-shadow] duration-150'
 
   return (
-    <AnimatePresence>
-      {item && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onClose}
-            data-no-swipe
-            className="fixed inset-0 z-[30] bg-black/35"
+    <BottomSheet
+      open={!!item}
+      onClose={onClose}
+      paddingBottom="calc(env(safe-area-inset-bottom) + 24px)"
+    >
+      <p className="mb-4 text-center text-[13px] font-medium text-zinc-400 px-5">
+        Eintrag bearbeiten
+      </p>
+
+      <form onSubmit={submit} className="space-y-3 px-5">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Bezeichnung"
+          className={inputCls + ' w-full'}
+        />
+
+        <div className="flex gap-2">
+          <input
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            placeholder="Menge"
+            inputMode="decimal"
+            className={narrowCls + ' w-16 text-center'}
           />
-
-          {/* Sheet */}
-          <motion.div
-            initial={{ y: '110%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '110%' }}
-            transition={{ type: 'spring', stiffness: 420, damping: 38 }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.45 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 90 || info.velocity.y > 600) onClose()
-            }}
-            data-no-swipe
-            className="fixed inset-x-0 bottom-0 z-[40] mx-auto max-w-2xl rounded-t-3xl bg-white p-5"
-            style={{
-              paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
-              boxShadow: '0 -10px 44px rgba(0,0,0,0.16), 0 -1px 0 rgba(0,0,0,0.05)',
-            }}
+          <select
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            className={narrowCls + ' w-[4.5rem] px-2.5'}
           >
-            {/* Greifer */}
-            <div className="mx-auto mb-3 h-1.5 w-10 cursor-grab rounded-full bg-zinc-300 active:cursor-grabbing" />
+            <option value="">Einheit</option>
+            {units.map((u) => (
+              <option key={u} value={u}>{u}</option>
+            ))}
+          </select>
+          <select
+            value={storeId}
+            onChange={(e) => setStoreId(e.target.value)}
+            className={selectCls}
+          >
+            <option value="">Ohne Laden</option>
+            {stores.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          <select
+            value={categoryId}
+            onChange={(e) => setCatId(e.target.value)}
+            className={selectCls}
+          >
+            <option value="">Ohne Kategorie</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
 
-            {/* Titel */}
-            <p className="mb-4 text-center text-[13px] font-medium text-zinc-400">
-              Eintrag bearbeiten
-            </p>
-
-            <form onSubmit={submit} className="space-y-3">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Bezeichnung"
-                className={inputCls + ' w-full'}
-              />
-
-              {/* Menge, Einheit, Laden, Kategorie in einer Zeile */}
-              <div className="flex gap-2">
-                <input
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  placeholder="Menge"
-                  inputMode="decimal"
-                  className={narrowCls + ' w-16 text-center'}
-                />
-                <select
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
-                  className={narrowCls + ' w-[4.5rem] px-2.5'}
-                >
-                  <option value="">Einheit</option>
-                  {units.map((u) => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
-                </select>
-                <select
-                  value={storeId}
-                  onChange={(e) => setStoreId(e.target.value)}
-                  className={selectCls}
-                >
-                  <option value="">Ohne Laden</option>
-                  {stores.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCatId(e.target.value)}
-                  className={selectCls}
-                >
-                  <option value="">Ohne Kategorie</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                disabled={!name.trim()}
-                className="w-full rounded-xl bg-brand-600 py-3 text-[15px] font-semibold text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-40"
-              >
-                Speichern
-              </button>
-            </form>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+        <button
+          type="submit"
+          disabled={!name.trim()}
+          className="w-full rounded-xl bg-brand-600 py-3 text-[15px] font-semibold text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-40"
+        >
+          Speichern
+        </button>
+      </form>
+    </BottomSheet>
   )
 }
