@@ -7,13 +7,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/haushalts-app/',
-  build: {
-    rollupOptions: {
-      output: {
-        entryFileNames: 'assets/index.js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name].[ext]',
-      },
-    },
-  },
+  // Keine festen Dateinamen: Vite vergibt Content-Hashes (z. B. index-a1b2c3.js).
+  // Das ist der korrekte Cache-Buster — nach jedem Deploy aendert sich der
+  // Dateiname, sodass Browser (auch Safari) garantiert die neue Version laden
+  // statt einer veralteten, evtl. kaputten Datei aus dem Cache.
 })
