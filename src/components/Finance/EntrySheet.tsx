@@ -282,13 +282,13 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
     onClose()
   }
 
-  const sectionLabel = 'mb-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400'
+  const sectionLabel = 'mb-2 text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400'
   const divider      = <div className="mx-5 h-px bg-zinc-100" />
 
   return (
     <BottomSheet open={open} onClose={onClose}>
             {/* Type toggle — icons + animation */}
-            <div className="mx-5 mt-3 flex rounded-2xl bg-zinc-100 p-1">
+            <div className="mx-5 mt-2 flex rounded-2xl bg-zinc-100 p-1">
               <TypeTab
                 label="Ausgabe"
                 icon={<MoneyFlyIcon size={16} />}
@@ -316,21 +316,21 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
                 className="col-start-1 row-start-1 flex flex-col transition-opacity duration-150"
                 style={{ opacity: type === 'expense' ? 1 : 0, pointerEvents: type === 'expense' ? 'auto' : 'none' }}
               >
-                <div className="px-5 pt-6 pb-4 text-center">
+                <div className="px-5 pt-4 pb-2 text-center">
                   <div className="flex items-baseline justify-center gap-1.5">
                     <input
                       inputMode="decimal" value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder="0,00"
-                      className="w-[240px] bg-transparent text-center text-[88px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
+                      className="w-[240px] bg-transparent text-center text-[64px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
                     />
-                    <span className="text-[44px] font-light text-zinc-300">€</span>
+                    <span className="text-[32px] font-light text-zinc-300">€</span>
                   </div>
                 </div>
 
                 {divider}
 
-                <div className="px-5 py-4">
+                <div className="px-5 py-2.5">
                   <input
                     value={description} onChange={(e) => setDescription(e.target.value)}
                     placeholder="Wofür?"
@@ -340,7 +340,7 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
 
                 {divider}
 
-                <div className="px-5 pt-4">
+                <div className="px-5 pt-3">
                   <p className={sectionLabel}>Bezahlt von</p>
                   <div className="flex justify-around">
                     <PersonAvatar name={nameA} avatarUrl={profileA?.avatar_url} selected={paidBy === 'A'} onClick={() => setPaidBy('A')} />
@@ -348,24 +348,24 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
                   </div>
                 </div>
 
-                <div className="mx-5 my-4 h-px bg-zinc-100" />
+                <div className="mx-5 my-3 h-px bg-zinc-100" />
 
                 <div className="px-5">
                   <p className={sectionLabel}>Wer trägt die Kosten?</p>
                   <SplitPicker split={split} onSelect={setSplit} nameA={nameA} nameB={nameB} />
                 </div>
 
-                <div className="mx-5 my-4 h-px bg-zinc-100" />
+                <div className="mx-5 my-3 h-px bg-zinc-100" />
 
                 <div className="px-5">
                   <DateRow value={date} onChange={setDate} />
                 </div>
 
-                <div className="mx-5 mt-auto pt-5 pb-1">
+                <div className="mx-5 mt-auto pt-3 pb-1">
                   <button
                     type="submit"
                     disabled={busy || !amount.trim() || !description.trim()}
-                    className="w-full rounded-2xl bg-brand-600 py-4 text-[16px] font-bold tracking-[-0.2px] text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-30"
+                    className="w-full rounded-2xl bg-brand-600 py-3.5 text-[16px] font-bold tracking-[-0.2px] text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-30"
                   >
                     {busy ? 'Speichern…' : 'Eintragen'}
                   </button>
@@ -378,21 +378,21 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
                 className="col-start-1 row-start-1 flex flex-col transition-opacity duration-150"
                 style={{ opacity: type === 'settlement' ? 1 : 0, pointerEvents: type === 'settlement' ? 'auto' : 'none' }}
               >
-                <div className="px-5 pt-6 pb-4 text-center">
+                <div className="px-5 pt-4 pb-2 text-center">
                   <div className="flex items-baseline justify-center gap-1.5">
                     <input
                       inputMode="decimal" value={payAmount}
                       onChange={(e) => setPayAmount(e.target.value)}
                       placeholder="0,00"
-                      className="w-[240px] bg-transparent text-center text-[88px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
+                      className="w-[240px] bg-transparent text-center text-[64px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
                     />
-                    <span className="text-[44px] font-light text-zinc-300">€</span>
+                    <span className="text-[32px] font-light text-zinc-300">€</span>
                   </div>
                 </div>
 
                 {divider}
 
-                <div className="px-5 pt-4">
+                <div className="px-5 pt-3">
                   <p className={sectionLabel}>Wer zahlt wem?</p>
                   <div className="flex items-center">
                     <div className="flex flex-1 justify-center">
@@ -418,17 +418,17 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
                   </div>
                 </div>
 
-                <div className="mx-5 my-4 h-px bg-zinc-100" />
+                <div className="mx-5 my-3 h-px bg-zinc-100" />
 
                 <div className="px-5">
                   <DateRow value={payDate} onChange={setPayDate} />
                 </div>
 
-                <div className="mx-5 mt-auto pt-5 pb-1">
+                <div className="mx-5 mt-auto pt-3 pb-1">
                   <button
                     type="submit"
                     disabled={busy || !payAmount.trim()}
-                    className="w-full rounded-2xl bg-brand-600 py-4 text-[16px] font-bold tracking-[-0.2px] text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-30"
+                    className="w-full rounded-2xl bg-brand-600 py-3.5 text-[16px] font-bold tracking-[-0.2px] text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-30"
                   >
                     {busy ? 'Speichern…' : 'Zahlung vermerken'}
                   </button>
