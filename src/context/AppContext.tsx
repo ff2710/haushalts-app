@@ -10,8 +10,6 @@ import {
 } from 'react'
 import { supabase } from '../lib/supabase'
 import { toastEmitter } from '../lib/toastEmitter'
-
-const dbErr = (msg: string) => toastEmitter.emit(msg)
 import { useAuth } from './AuthContext'
 import type {
   Category,
@@ -22,6 +20,8 @@ import type {
   ShoppingItem,
   Store,
 } from '../types'
+
+const dbErr = (msg: string) => toastEmitter.emit(msg)
 
 interface AppContextValue {
   loading:    boolean
