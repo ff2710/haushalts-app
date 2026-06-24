@@ -3,10 +3,13 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
 import { useApp } from '../../context/AppContext'
 import { CameraIcon, HouseIcon } from '../ui/Icon'
+import AvatarCircle from '../ui/AvatarCircle'
 
 export default function Onboarding() {
   const { createProfile, updateAvatar, signOut } = useAuth()
-  const { linkCurrentUser } = useApp()
+  const { linkCurrentUser, settings, nameA, profileA } = useApp()
+
+  const isPersonB = !!(settings?.person_a_id && !settings?.person_b_id)
 
   const [name, setName]                     = useState('')
   const [error, setError]                   = useState<string | null>(null)
@@ -103,6 +106,21 @@ export default function Onboarding() {
                 onChange={handleFileChange}
               />
             </div>
+
+            {isPersonB && (
+              <div className="flex items-center gap-3 rounded-2xl bg-brand-50 p-4">
+                <AvatarCircle
+                  name={nameA}
+                  avatarUrl={profileA?.avatar_url}
+                  size={40}
+                  bgClassName="bg-brand-100"
+                  textClassName="text-brand-700"
+                />
+                <p className="text-[14px] font-medium text-brand-700">
+                  Du verbindest dich mit {nameA}s Haushalt
+                </p>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="block text-[13px] font-medium text-zinc-600">

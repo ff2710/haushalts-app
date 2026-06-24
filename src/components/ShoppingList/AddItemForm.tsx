@@ -21,6 +21,7 @@ export default function AddItemForm({
   const [newGroupName, setNewGroupName] = useState('')
   const [groupError, setGroupError]   = useState('')
   const [busy, setBusy]               = useState(false)
+  const [submitted, setSubmitted]     = useState(false)
 
   const nameRef        = useRef<HTMLInputElement>(null)
   const newStoreRef    = useRef<HTMLInputElement>(null)
@@ -38,7 +39,7 @@ export default function AddItemForm({
       setName(''); setQuantity(''); setUnit('')
       setStoreId(''); setCategoryId('')
       setAddingFor(null); setNewGroupName(''); setGroupError('')
-      setBusy(false)
+      setBusy(false); setSubmitted(false)
     }
   }, [open])
 
@@ -60,6 +61,8 @@ export default function AddItemForm({
     setStoreId('')
     setCategoryId('')
     setBusy(false)
+    setSubmitted(true)
+    setTimeout(() => setSubmitted(false), 600)
     nameRef.current?.focus()
   }
 
@@ -144,6 +147,15 @@ export default function AddItemForm({
   return (
     <BottomSheet open={open} onClose={onClose}>
       <form onSubmit={(e) => void submit(e)} className="flex flex-col">
+
+              {/* Fertig-Button oben rechts, bündig mit dem Drag-Handle */}
+              <button
+                type="button"
+                onClick={onClose}
+                className="absolute right-5 top-4 text-[15px] font-semibold text-brand-600"
+              >
+                Fertig
+              </button>
 
               {/* Artikelname — groß und zentriert */}
               <div className="px-5 pt-5 pb-5 text-center">
@@ -240,9 +252,12 @@ export default function AddItemForm({
                 <button
                   type="submit"
                   disabled={busy || !name.trim()}
-                  className="w-full rounded-2xl bg-brand-600 py-4 text-[16px] font-bold tracking-[-0.2px] text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-30"
+                  className={
+                    'w-full rounded-2xl py-4 text-[16px] font-bold tracking-[-0.2px] text-white transition-colors duration-200 active:scale-[0.98] disabled:opacity-30 ' +
+                    (submitted ? 'bg-emerald-500' : 'bg-brand-600 hover:bg-brand-700')
+                  }
                 >
-                  {busy ? 'Hinzufügen…' : 'Hinzufügen'}
+                  {busy ? 'Hinzufügen…' : submitted ? '✓ Hinzugefügt' : 'Hinzufügen'}
                 </button>
               </div>
 

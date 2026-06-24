@@ -6,6 +6,7 @@ import Login from './components/Auth/Login'
 import Onboarding from './components/Auth/Onboarding'
 import Spinner from './components/ui/Spinner'
 import ErrorToast from './components/ui/ErrorToast'
+import OfflineBanner from './components/ui/OfflineBanner'
 import ShoppingList from './components/ShoppingList/ShoppingList'
 import Finance from './components/Finance/Finance'
 import Settings from './components/Settings/Settings'
@@ -183,6 +184,7 @@ export default function App() {
 
   return (
     <AppProvider>
+      <OfflineBanner />
       {!profile ? <Onboarding /> : <Shell />}
     </AppProvider>
   )
