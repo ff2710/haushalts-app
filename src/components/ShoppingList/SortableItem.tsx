@@ -65,7 +65,7 @@ export default function SortableItem({
       initial={false}
       exit={{ opacity: 0, height: 0, paddingTop: 0, paddingBottom: 0 }}
       transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-      className="flex items-center gap-1.5 bg-white px-3 py-0"
+      className="flex items-center gap-1 bg-white px-3 py-0"
     >
       {/* Drag-Handle — nur im Modus "Angepasst" sichtbar */}
       {dragDisabled ? (
@@ -83,7 +83,7 @@ export default function SortableItem({
       )}
 
       {/* Checkbox */}
-      <div className="flex shrink-0 items-center justify-center min-h-[44px] min-w-[44px]">
+      <div className="flex shrink-0 items-center justify-center min-h-[44px] min-w-[36px]">
         <div className="relative flex items-center">
           <input
             type="checkbox"

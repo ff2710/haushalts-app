@@ -38,7 +38,7 @@ function TypeTab({
       type="button"
       onClick={onClick}
       className={
-        'flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 transition-all duration-200 active:scale-[0.97] ' +
+        'flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 transition-all duration-200 active:scale-[0.97] ' +
         (active ? 'bg-white shadow-sm' : '')
       }
     >
@@ -305,39 +305,39 @@ export default function EntrySheet({
 
   return (
     <BottomSheet open={open} onClose={onClose}>
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute right-5 top-4 text-[15px] font-semibold text-brand-600"
-      >
-        Fertig
-      </button>
-
-            {editExpense ? (
-              /* Edit-Modus: Titel statt Tab-Toggle */
-              <div className="mx-5 mt-3 flex items-center gap-2">
-                <PencilIcon size={15} className="shrink-0 text-zinc-400" />
-                <p className="text-[15px] font-semibold tracking-[-0.2px] text-zinc-900">
-                  Ausgabe bearbeiten
-                </p>
-              </div>
-            ) : (
-              /* Neuer Eintrag: Type toggle — icons + animation */
-              <div className="mx-5 mt-2 flex rounded-2xl bg-zinc-100 p-1">
-                <TypeTab
-                  label="Ausgabe"
-                  icon={<MoneyFlyIcon size={16} />}
-                  active={type === 'expense'}
-                  onClick={() => setType('expense')}
-                />
-                <TypeTab
-                  label="Zahlung"
-                  icon={<SwapIcon size={16} />}
-                  active={type === 'settlement'}
-                  onClick={() => setType('settlement')}
-                />
-              </div>
-            )}
+      {/* Header: Tab-Toggle (oder Titel) + Fertig nebeneinander */}
+      <div className="mx-5 mt-2 flex items-center gap-3">
+        {editExpense ? (
+          <div className="flex flex-1 items-center gap-2">
+            <PencilIcon size={14} className="shrink-0 text-zinc-400" />
+            <p className="text-[14px] font-semibold tracking-[-0.2px] text-zinc-900">
+              Ausgabe bearbeiten
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-1 rounded-2xl bg-zinc-100 p-[3px]">
+            <TypeTab
+              label="Ausgabe"
+              icon={<MoneyFlyIcon size={15} />}
+              active={type === 'expense'}
+              onClick={() => setType('expense')}
+            />
+            <TypeTab
+              label="Zahlung"
+              icon={<SwapIcon size={15} />}
+              active={type === 'settlement'}
+              onClick={() => setType('settlement')}
+            />
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 text-[14px] font-semibold text-brand-600"
+        >
+          Fertig
+        </button>
+      </div>
 
             {/*
               CSS Grid stacking: both forms occupy the same grid cell.
@@ -355,7 +355,7 @@ export default function EntrySheet({
                 className="col-start-1 row-start-1 flex flex-col"
                 style={{ pointerEvents: type === 'expense' ? 'auto' : 'none' }}
               >
-                <div className="px-5 pt-4 pb-2 text-center">
+                <div className="px-5 pt-3 pb-2 text-center">
                   <div className="flex items-baseline justify-center gap-1.5">
                     <input
                       inputMode="decimal" value={amount}
@@ -369,17 +369,17 @@ export default function EntrySheet({
 
                 {divider}
 
-                <div className="px-5 py-2.5">
+                <div className="px-5 py-2">
                   <input
                     value={description} onChange={(e) => setDescription(e.target.value)}
                     placeholder="Wofür?"
-                    className="w-full bg-transparent text-center text-[20px] font-medium text-zinc-700 placeholder:text-zinc-300 focus:outline-none"
+                    className="w-full bg-transparent text-center text-[19px] font-medium text-zinc-700 placeholder:text-zinc-300 focus:outline-none"
                   />
                 </div>
 
                 {divider}
 
-                <div className="px-5 pt-3">
+                <div className="px-5 pt-2.5">
                   <p className={sectionLabel}>Bezahlt von</p>
                   <div className="flex justify-around">
                     <PersonAvatar name={nameA} avatarUrl={profileA?.avatar_url} selected={paidBy === 'A'} onClick={() => setPaidBy('A')} />
@@ -387,14 +387,14 @@ export default function EntrySheet({
                   </div>
                 </div>
 
-                <div className="mx-5 my-3 h-px bg-zinc-100" />
+                <div className="mx-5 my-2 h-px bg-zinc-100" />
 
                 <div className="px-5">
                   <p className={sectionLabel}>Wer trägt die Kosten?</p>
                   <SplitPicker split={split} onSelect={setSplit} nameA={nameA} nameB={nameB} />
                 </div>
 
-                <div className="mx-5 my-3 h-px bg-zinc-100" />
+                <div className="mx-5 my-2 h-px bg-zinc-100" />
 
                 <div className="px-5">
                   <DateRow value={date} onChange={setDate} />
@@ -404,7 +404,7 @@ export default function EntrySheet({
                   <button
                     type="submit"
                     disabled={busy || !amount.trim() || !description.trim()}
-                    className="w-full rounded-2xl bg-brand-600 py-3.5 text-[16px] font-bold tracking-[-0.2px] text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-30"
+                    className="w-full rounded-2xl bg-brand-600 py-3 text-[15px] font-bold tracking-[-0.2px] text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-30"
                   >
                     {busy ? 'Speichern…' : editExpense ? 'Speichern' : 'Eintragen'}
                   </button>
@@ -420,7 +420,7 @@ export default function EntrySheet({
                 className="col-start-1 row-start-1 flex flex-col"
                 style={{ pointerEvents: type === 'settlement' ? 'auto' : 'none' }}
               >
-                <div className="px-5 pt-4 pb-2 text-center">
+                <div className="px-5 pt-3 pb-2 text-center">
                   <div className="flex items-baseline justify-center gap-1.5">
                     <input
                       inputMode="decimal" value={payAmount}
@@ -434,7 +434,7 @@ export default function EntrySheet({
 
                 {divider}
 
-                <div className="px-5 pt-3">
+                <div className="px-5 pt-2.5">
                   <p className={sectionLabel}>Wer zahlt wem?</p>
                   <div className="flex items-center">
                     <div className="flex flex-1 justify-center">
@@ -460,7 +460,7 @@ export default function EntrySheet({
                   </div>
                 </div>
 
-                <div className="mx-5 my-3 h-px bg-zinc-100" />
+                <div className="mx-5 my-2 h-px bg-zinc-100" />
 
                 <div className="px-5">
                   <DateRow value={payDate} onChange={setPayDate} />
@@ -470,7 +470,7 @@ export default function EntrySheet({
                   <button
                     type="submit"
                     disabled={busy || !payAmount.trim()}
-                    className="w-full rounded-2xl bg-brand-600 py-3.5 text-[16px] font-bold tracking-[-0.2px] text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-30"
+                    className="w-full rounded-2xl bg-brand-600 py-3 text-[15px] font-bold tracking-[-0.2px] text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-30"
                   >
                     {busy ? 'Speichern…' : 'Zahlung vermerken'}
                   </button>
