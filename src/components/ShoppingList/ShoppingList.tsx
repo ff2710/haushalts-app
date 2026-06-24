@@ -542,7 +542,6 @@ export default function ShoppingList() {
                                   key={item.id}
                                   item={item}
                                   onLongPress={(it, rect) => setMenu({ item: it, rect })}
-                                  onDelete={handleDirectDelete}
                                   dragDisabled={sort !== 'custom'}
                                 />
                               ))}

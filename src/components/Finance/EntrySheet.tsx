@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext'
 import { MoneyFlyIcon, PencilIcon, SwapIcon } from '../ui/Icon'
 import AvatarCircle from '../ui/AvatarCircle'
 import BottomSheet from '../ui/BottomSheet'
-import { computeBalance, formatDate, todayISO } from '../../lib/utils'
+import { formatDate, todayISO } from '../../lib/utils'
 import type { Expense, Person, Split } from '../../types'
 
 // ── Animated tab (like ShoppingList sort pills) ───────────────────────────────
@@ -231,7 +231,7 @@ export default function EntrySheet({
   onClose: () => void
   editExpense?: Expense | null
 }) {
-  const { addExpense, updateExpense, addSettlement, expenses, settlements, nameA, nameB, myRole, profileA, profileB } = useApp()
+  const { addExpense, updateExpense, addSettlement, nameA, nameB, myRole, profileA, profileB } = useApp()
 
   const myPerson: Person = myRole ?? 'A'
 
@@ -247,14 +247,6 @@ export default function EntrySheet({
   const [busy, setBusy]               = useState(false)
 
   const payTo: Person = payFrom === 'A' ? 'B' : 'A'
-  const { net }       = computeBalance(expenses, settlements)
-
-  const prefillPayment = () => {
-    if (Math.abs(net) > 0.005) {
-      setPayAmount(Math.abs(net).toFixed(2).replace('.', ','))
-      setPayFrom(net > 0 ? 'B' : 'A')
-    }
-  }
 
   useEffect(() => {
     if (open) {
@@ -277,7 +269,10 @@ export default function EntrySheet({
   }, [open, myPerson, editExpense])
 
   useEffect(() => {
-    if (open && type === 'settlement' && !payAmount) prefillPayment()
+    if (open && type === 'settlement') {
+      setPayAmount('')
+      setPayDate(todayISO())
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type])
 
@@ -339,7 +334,7 @@ export default function EntrySheet({
                   label="Zahlung"
                   icon={<SwapIcon size={16} />}
                   active={type === 'settlement'}
-                  onClick={() => { setType('settlement'); if (!payAmount) prefillPayment() }}
+                  onClick={() => setType('settlement')}
                 />
               </div>
             )}
@@ -366,9 +361,9 @@ export default function EntrySheet({
                       inputMode="decimal" value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder="0,00"
-                      className="w-[240px] bg-transparent text-center text-[52px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
+                      className="w-[240px] bg-transparent text-center text-[42px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
                     />
-                    <span className="text-[26px] font-light text-zinc-300">€</span>
+                    <span className="text-[22px] font-light text-zinc-300">€</span>
                   </div>
                 </div>
 
@@ -431,9 +426,9 @@ export default function EntrySheet({
                       inputMode="decimal" value={payAmount}
                       onChange={(e) => setPayAmount(e.target.value)}
                       placeholder="0,00"
-                      className="w-[240px] bg-transparent text-center text-[52px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
+                      className="w-[240px] bg-transparent text-center text-[42px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
                     />
-                    <span className="text-[26px] font-light text-zinc-300">€</span>
+                    <span className="text-[22px] font-light text-zinc-300">€</span>
                   </div>
                 </div>
 

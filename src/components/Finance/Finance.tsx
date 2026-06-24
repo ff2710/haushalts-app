@@ -91,7 +91,6 @@ export default function Finance() {
       <div className="space-y-5 pb-24">
         <BalanceCard />
         <History
-          onDelete={handleDeleteRequest}
           onLongPress={(row, rect) => setMenu({ row, rect })}
           hiddenId={hiddenId}
         />
