@@ -71,7 +71,10 @@ function PersonAvatar({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-1.5 px-4 py-1 transition-all duration-150 active:scale-95"
+      className={
+        'flex flex-col items-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-150 active:scale-95 ' +
+        (selected ? 'bg-brand-50' : '')
+      }
     >
       <AvatarCircle
         name={name}
@@ -79,7 +82,7 @@ function PersonAvatar({
         size={56}
         bgClassName={selected ? 'bg-brand-600' : 'bg-zinc-100'}
         textClassName={selected ? 'text-white' : 'text-zinc-400'}
-        className={selected ? 'shadow-md ring-4 ring-brand-100 transition-all duration-200' : 'transition-all duration-200'}
+        className={selected ? 'shadow-md ring-4 ring-brand-400 transition-all duration-200' : 'transition-all duration-200'}
       />
       <span className={
         'text-[13px] font-medium transition-colors duration-200 ' +
@@ -199,23 +202,21 @@ function SplitPicker({
 
 // ── Date row ──────────────────────────────────────────────────────────────────
 function DateRow({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const today    = todayISO()
-  const label    = value === today ? 'Heute' : formatDate(value)
+  const today = todayISO()
+  const label = value === today ? 'Heute' : formatDate(value)
 
   return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setTimeout(() => inputRef.current?.showPicker?.(), 60)}
-        className="flex w-full items-center justify-between py-1 transition-opacity duration-100 active:opacity-60"
-      >
+    <div className="relative">
+      <div className="flex w-full items-center justify-between py-1 pointer-events-none">
         <span className="text-[13px] text-zinc-400">Datum</span>
         <span className="text-[13px] font-medium text-zinc-600">{label} ›</span>
-      </button>
-      <input ref={inputRef} type="date" value={value}
+      </div>
+      <input
+        type="date"
+        value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="sr-only" tabIndex={-1} />
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
     </div>
   )
 }
@@ -317,13 +318,13 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
               >
                 <div className="px-5 pt-6 pb-4 text-center">
                   <div className="flex items-baseline justify-center gap-1.5">
-                    <span className="text-[44px] font-light text-zinc-300">€</span>
                     <input
                       inputMode="decimal" value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder="0,00"
-                      className="w-[240px] bg-transparent text-center text-[72px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
+                      className="w-[240px] bg-transparent text-center text-[88px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
                     />
+                    <span className="text-[44px] font-light text-zinc-300">€</span>
                   </div>
                 </div>
 
@@ -379,13 +380,13 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
               >
                 <div className="px-5 pt-6 pb-4 text-center">
                   <div className="flex items-baseline justify-center gap-1.5">
-                    <span className="text-[44px] font-light text-zinc-300">€</span>
                     <input
                       inputMode="decimal" value={payAmount}
                       onChange={(e) => setPayAmount(e.target.value)}
                       placeholder="0,00"
-                      className="w-[240px] bg-transparent text-center text-[72px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
+                      className="w-[240px] bg-transparent text-center text-[88px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
                     />
+                    <span className="text-[44px] font-light text-zinc-300">€</span>
                   </div>
                 </div>
 

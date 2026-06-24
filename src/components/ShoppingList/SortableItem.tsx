@@ -67,11 +67,11 @@ export default function SortableItem({
       initial={false}
       exit={{ opacity: 0, height: 0, paddingTop: 0, paddingBottom: 0 }}
       transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-      className="flex items-center gap-2 overflow-hidden bg-transparent px-3 py-1.5"
+      className="flex items-center gap-1.5 overflow-hidden bg-transparent px-3 py-0"
     >
       {/* Drag-Handle — nur im Modus "Angepasst" sichtbar */}
       {dragDisabled ? (
-        <div className="w-4 shrink-0" />
+        <div className="w-8 shrink-0" />
       ) : (
         <button
           type="button"
@@ -80,7 +80,7 @@ export default function SortableItem({
           className="flex h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center text-zinc-300 transition-colors duration-150 hover:text-zinc-500 active:cursor-grabbing"
           aria-label="Verschieben"
         >
-          <GripIcon size={9} />
+          <GripIcon size={13} />
         </button>
       )}
 
