@@ -5,6 +5,7 @@ import { AppProvider, useApp } from './context/AppContext'
 import Login from './components/Auth/Login'
 import Onboarding from './components/Auth/Onboarding'
 import Spinner from './components/ui/Spinner'
+import ErrorToast from './components/ui/ErrorToast'
 import ShoppingList from './components/ShoppingList/ShoppingList'
 import Finance from './components/Finance/Finance'
 import Settings from './components/Settings/Settings'
@@ -75,6 +76,7 @@ function Shell() {
   return (
     // 1. ÄUSSERER WRAPPER: Exakt 100dvh hoch, kein globales Scrollen (overflow-hidden)
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-[#F5F5F2]">
+      <ErrorToast />
       
       {/* Header: 'flex-none' statt 'sticky top-0' */}
       <header className="flex-none z-[60] bg-[#F5F5F2]/80 backdrop-blur-2xl">

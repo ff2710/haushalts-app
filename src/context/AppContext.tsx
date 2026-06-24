@@ -9,6 +9,9 @@ import {
   type ReactNode,
 } from 'react'
 import { supabase } from '../lib/supabase'
+import { toastEmitter } from '../lib/toastEmitter'
+
+const dbErr = (msg: string) => toastEmitter.emit(msg)
 import { useAuth } from './AuthContext'
 import type {
   Category,
@@ -256,17 +259,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const t = name.trim()
     if (!t || units.includes(t)) return
     setUnits((prev) => [...prev, t])
-    await supabase.from('units').insert({ name: t, position: units.length })
+    const { error } = await supabase.from('units').insert({ name: t, position: units.length })
+    if (error) { setUnits((prev) => prev.filter((u) => u !== t)); dbErr('Einheit konnte nicht gespeichert werden.') }
   }
   const removeUnit = async (name: string) => {
     setUnits((prev) => prev.filter((u) => u !== name))
-    await supabase.from('units').delete().eq('name', name)
+    const { error } = await supabase.from('units').delete().eq('name', name)
+    if (error) { setUnits((prev) => [...prev, name]); dbErr('Einheit konnte nicht gelöscht werden.') }
   }
 
   // ----- Läden -----
   const addStore = async (name: string): Promise<Store | null> => {
     const position = (stores.at(-1)?.position ?? 0) + 1
-    const { data } = await supabase.from('stores').insert({ name, position }).select().single()
+    const { data, error } = await supabase.from('stores').insert({ name, position }).select().single()
+    if (error) { dbErr('Laden konnte nicht gespeichert werden.'); return null }
     if (data) {
       setStores((a) => upsert(a, data as Store).sort(byPosition))
       return data as Store
@@ -274,14 +280,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return null
   }
   const deleteStore = async (id: string) => {
+    const prev = stores.find((s) => s.id === id)
     setStores((a) => removeById(a, id))
-    await supabase.from('stores').delete().eq('id', id)
+    const { error } = await supabase.from('stores').delete().eq('id', id)
+    if (error) { if (prev) setStores((a) => upsert(a, prev).sort(byPosition)); dbErr('Laden konnte nicht gelöscht werden.') }
   }
 
   // ----- Kategorien -----
   const addCategory = async (name: string): Promise<Category | null> => {
     const position = (categories.at(-1)?.position ?? 0) + 1
-    const { data } = await supabase.from('categories').insert({ name, position }).select().single()
+    const { data, error } = await supabase.from('categories').insert({ name, position }).select().single()
+    if (error) { dbErr('Kategorie konnte nicht gespeichert werden.'); return null }
     if (data) {
       setCategories((a) => upsert(a, data as Category).sort(byPosition))
       return data as Category
@@ -289,8 +298,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return null
   }
   const deleteCategory = async (id: string) => {
+    const prev = categories.find((c) => c.id === id)
     setCategories((a) => removeById(a, id))
-    await supabase.from('categories').delete().eq('id', id)
+    const { error } = await supabase.from('categories').delete().eq('id', id)
+    if (error) { if (prev) setCategories((a) => upsert(a, prev).sort(byPosition)); dbErr('Kategorie konnte nicht gelöscht werden.') }
   }
 
   // ----- Einkaufsartikel -----
@@ -305,16 +316,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       is_done:     false,
       position,
     }
-    const { data: row } = await supabase.from('shopping_items').insert(payload).select().single()
+    const { data: row, error } = await supabase.from('shopping_items').insert(payload).select().single()
+    if (error) { dbErr('Artikel konnte nicht hinzugefügt werden.'); return }
     if (row) setItems((a) => upsert(a, row as ShoppingItem).sort(byPosition))
   }
   const updateItem = async (id: string, patch: Partial<ShoppingItem>) => {
     setItems((a) => a.map((x) => (x.id === id ? { ...x, ...patch } : x)).sort(byPosition))
-    await supabase.from('shopping_items').update(patch).eq('id', id)
+    const { error } = await supabase.from('shopping_items').update(patch).eq('id', id)
+    if (error) dbErr('Änderung konnte nicht gespeichert werden.')
   }
   const deleteItem = async (id: string) => {
     setItems((a) => removeById(a, id))
-    await supabase.from('shopping_items').delete().eq('id', id)
+    const { error } = await supabase.from('shopping_items').delete().eq('id', id)
+    if (error) dbErr('Artikel konnte nicht gelöscht werden.')
   }
   const reorderItems = async (ordered: ShoppingItem[]) => {
     const withPos = ordered.map((it, i) => ({ ...it, position: i }))
@@ -322,21 +336,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const map = new Map(withPos.map((x) => [x.id, x]))
       return a.map((x) => map.get(x.id) ?? x).sort(byPosition)
     })
-    await Promise.all(
+    const results = await Promise.all(
       withPos.map((it) =>
         supabase.from('shopping_items').update({ position: it.position }).eq('id', it.id),
       ),
     )
+    if (results.some((r) => r.error)) dbErr('Reihenfolge konnte nicht gespeichert werden.')
   }
 
   // ----- Ausgaben -----
   const addExpense = async (data: Omit<Expense, 'id' | 'created_at'>) => {
-    const { data: row } = await supabase.from('expenses').insert(data).select().single()
+    const { data: row, error } = await supabase.from('expenses').insert(data).select().single()
+    if (error) { dbErr('Ausgabe konnte nicht gespeichert werden.'); return }
     if (row) setExpenses((a) => upsert(a, row as Expense).sort(byDateDesc))
   }
   const deleteExpense = async (id: string) => {
     setExpenses((a) => removeById(a, id))
-    await supabase.from('expenses').delete().eq('id', id)
+    const { error } = await supabase.from('expenses').delete().eq('id', id)
+    if (error) dbErr('Ausgabe konnte nicht gelöscht werden.')
   }
 
   // ----- Reset -----
@@ -359,12 +376,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ----- Ausgleich -----
   const addSettlement = async (data: Omit<Settlement, 'id' | 'created_at'>) => {
-    const { data: row } = await supabase.from('settlements').insert(data).select().single()
+    const { data: row, error } = await supabase.from('settlements').insert(data).select().single()
+    if (error) { dbErr('Zahlung konnte nicht gespeichert werden.'); return }
     if (row) setSettlements((a) => upsert(a, row as Settlement).sort(byDateDesc))
   }
   const deleteSettlement = async (id: string) => {
     setSettlements((a) => removeById(a, id))
-    await supabase.from('settlements').delete().eq('id', id)
+    const { error } = await supabase.from('settlements').delete().eq('id', id)
+    if (error) dbErr('Zahlung konnte nicht gelöscht werden.')
   }
 
   const value: AppContextValue = {

@@ -353,12 +353,12 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
               >
                 <div className="px-5 pt-6 pb-4 text-center">
                   <div className="flex items-baseline justify-center gap-1.5">
-                    <span className="text-[28px] font-light text-zinc-300">€</span>
+                    <span className="text-[36px] font-light text-zinc-300">€</span>
                     <input
                       inputMode="decimal" value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder="0,00"
-                      className="w-[180px] bg-transparent text-center text-[44px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
+                      className="w-[200px] bg-transparent text-center text-[56px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -415,12 +415,12 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
               >
                 <div className="px-5 pt-6 pb-4 text-center">
                   <div className="flex items-baseline justify-center gap-1.5">
-                    <span className="text-[28px] font-light text-zinc-300">€</span>
+                    <span className="text-[36px] font-light text-zinc-300">€</span>
                     <input
                       inputMode="decimal" value={payAmount}
                       onChange={(e) => setPayAmount(e.target.value)}
                       placeholder="0,00"
-                      className="w-[180px] bg-transparent text-center text-[44px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
+                      className="w-[200px] bg-transparent text-center text-[56px] font-bold tracking-tight text-zinc-900 placeholder:text-zinc-200 focus:outline-none"
                     />
                   </div>
                 </div>

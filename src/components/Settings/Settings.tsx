@@ -378,7 +378,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => deleteAction(item.id)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-300 transition-all duration-150 hover:bg-red-50 hover:text-red-400 active:scale-90"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-zinc-300 transition-all duration-150 hover:bg-red-50 hover:text-red-400 active:scale-90"
                   aria-label="Löschen"
                 >
                   <TrashIcon size={14} />

@@ -415,7 +415,7 @@ export default function ShoppingList() {
                     key={s.value}
                     onClick={() => setSort(s.value)}
                     className={
-                      'flex flex-1 items-center justify-center gap-1 rounded-xl px-1 py-[7px] text-[13px] font-medium tracking-[-0.1px] transition-all duration-200 ' +
+                      'flex flex-1 items-center justify-center gap-1 rounded-xl px-1 py-3 text-[13px] font-medium tracking-[-0.1px] transition-all duration-200 ' +
                       (sort === s.value
                         ? 'bg-white text-brand-700 shadow-card'
                         : 'text-zinc-500 hover:text-zinc-700')
@@ -450,7 +450,7 @@ export default function ShoppingList() {
                       setGroupError('')
                     }}
                     className={
-                      'flex flex-1 items-center justify-center gap-1 rounded-xl px-1 py-[7px] text-[13px] font-medium tracking-[-0.1px] transition-all duration-200 ' +
+                      'flex flex-1 items-center justify-center gap-1 rounded-xl px-1 py-3 text-[13px] font-medium tracking-[-0.1px] transition-all duration-200 ' +
                       (mode === m.value
                         ? 'bg-white text-brand-700 shadow-card'
                         : 'text-zinc-500 hover:text-zinc-700')
