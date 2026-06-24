@@ -249,7 +249,7 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
   }
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
       setAmount(''); setDescription(''); setDate(todayISO())
       setPaidBy(myPerson); setSplit('both')
       setPayAmount(''); setPayDate(todayISO()); setPayFrom(myPerson)
@@ -311,10 +311,13 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
             <div className="grid">
 
               {/* ── Ausgabe ── */}
-              <form
+              <motion.form
                 onSubmit={submitExpense}
-                className="col-start-1 row-start-1 flex flex-col transition-opacity duration-150"
-                style={{ opacity: type === 'expense' ? 1 : 0, pointerEvents: type === 'expense' ? 'auto' : 'none' }}
+                initial={false}
+                animate={{ opacity: type === 'expense' ? 1 : 0, y: type === 'expense' ? 0 : 6 }}
+                transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
+                className="col-start-1 row-start-1 flex flex-col"
+                style={{ pointerEvents: type === 'expense' ? 'auto' : 'none' }}
               >
                 <div className="px-5 pt-4 pb-2 text-center">
                   <div className="flex items-baseline justify-center gap-1.5">
@@ -370,13 +373,16 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
                     {busy ? 'Speichern…' : 'Eintragen'}
                   </button>
                 </div>
-              </form>
+              </motion.form>
 
               {/* ── Zahlung ── */}
-              <form
+              <motion.form
                 onSubmit={submitPayment}
-                className="col-start-1 row-start-1 flex flex-col transition-opacity duration-150"
-                style={{ opacity: type === 'settlement' ? 1 : 0, pointerEvents: type === 'settlement' ? 'auto' : 'none' }}
+                initial={false}
+                animate={{ opacity: type === 'settlement' ? 1 : 0, y: type === 'settlement' ? 0 : 6 }}
+                transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
+                className="col-start-1 row-start-1 flex flex-col"
+                style={{ pointerEvents: type === 'settlement' ? 'auto' : 'none' }}
               >
                 <div className="px-5 pt-4 pb-2 text-center">
                   <div className="flex items-baseline justify-center gap-1.5">
@@ -433,7 +439,7 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
                     {busy ? 'Speichern…' : 'Zahlung vermerken'}
                   </button>
                 </div>
-              </form>
+              </motion.form>
 
             </div>
     </BottomSheet>
