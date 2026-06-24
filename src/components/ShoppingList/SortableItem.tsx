@@ -77,7 +77,7 @@ export default function SortableItem({
           type="button"
           {...attributes}
           {...listeners}
-          className="flex h-7 w-4 shrink-0 cursor-grab touch-none items-center justify-center text-zinc-300 transition-colors duration-150 hover:text-zinc-500 active:cursor-grabbing"
+          className="flex h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center text-zinc-300 transition-colors duration-150 hover:text-zinc-500 active:cursor-grabbing"
           aria-label="Verschieben"
         >
           <GripIcon size={9} />
@@ -85,7 +85,8 @@ export default function SortableItem({
       )}
 
       {/* Checkbox */}
-      <div className="relative flex shrink-0 items-center">
+      <div className="flex shrink-0 items-center justify-center min-h-[44px] min-w-[44px]">
+      <div className="relative flex items-center">
         <input
           type="checkbox"
           checked={item.is_done}
@@ -103,6 +104,7 @@ export default function SortableItem({
         >
           <polyline points="1,4 4,7 9,1" />
         </svg>
+      </div>
       </div>
 
       {/* Name + Menge – gedrückt halten zum Bearbeiten */}

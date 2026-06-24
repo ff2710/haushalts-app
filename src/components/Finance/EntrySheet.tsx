@@ -43,11 +43,11 @@ function TypeTab({
       }
     >
       <motion.span animate={controls} className="inline-flex shrink-0">
-        <span className={active ? 'text-violet-600' : 'text-zinc-400'}>{icon}</span>
+        <span className={active ? 'text-brand-600' : 'text-zinc-400'}>{icon}</span>
       </motion.span>
       <span className={
         'text-[14px] font-semibold tracking-[-0.1px] transition-colors duration-200 ' +
-        (active ? 'text-violet-600' : 'text-zinc-400')
+        (active ? 'text-brand-600' : 'text-zinc-400')
       }>
         {label}
       </span>

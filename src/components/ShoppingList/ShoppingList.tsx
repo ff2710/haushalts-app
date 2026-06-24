@@ -378,7 +378,7 @@ export default function ShoppingList() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4" pb-24>
+    <div className="mx-auto max-w-2xl space-y-4 pb-28">
       {/* Steuerleiste: Sortierung (links) + Gruppierung (rechts) */}
       <div className="space-y-1.5">
         <div className="flex justify-end px-1">

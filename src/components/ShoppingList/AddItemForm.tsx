@@ -151,6 +151,7 @@ export default function AddItemForm({
                   ref={nameRef}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void submit(e as unknown as FormEvent) } }}
                   placeholder="Was wird gebraucht?"
                   className="w-full bg-transparent text-center text-[22px] font-semibold tracking-tight text-zinc-900 placeholder:text-zinc-300 focus:outline-none"
                 />
