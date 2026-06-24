@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../../context/AppContext'
 import { formatDate, formatMoney } from '../../lib/utils'
 import type { Expense, Person, Settlement } from '../../types'
-import { MoneyFlyIcon, SwapIcon, TrashIcon } from '../ui/Icon'
+import { MoneyFlyIcon, PencilIcon, SwapIcon, TrashIcon } from '../ui/Icon'
 
 type Row =
   | { kind: 'expense';    data: Expense    }
@@ -11,9 +11,11 @@ type Row =
 
 export default function History({
   onDelete,
+  onEdit,
   hiddenId,
 }: {
   onDelete: (kind: 'expense' | 'settlement', id: string, label: string) => void
+  onEdit?: (expense: Expense) => void
   hiddenId?: string | null
 }) {
   const { expenses, settlements, nameA, nameB } = useApp()
@@ -80,6 +82,15 @@ export default function History({
                   {formatMoney(Number(row.data.amount))}
                 </p>
 
+                {onEdit && (
+                  <button
+                    onClick={() => onEdit(row.data)}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-zinc-300 transition-all duration-150 hover:bg-brand-50 hover:text-brand-400 active:scale-90"
+                    aria-label="Bearbeiten"
+                  >
+                    <PencilIcon size={14} />
+                  </button>
+                )}
                 <button
                   onClick={() => onDelete('expense', row.data.id, `${row.data.description} (${formatMoney(Number(row.data.amount))})`)}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-zinc-300 transition-all duration-150 hover:bg-red-50 hover:text-red-400 active:scale-90"

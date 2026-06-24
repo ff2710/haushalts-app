@@ -58,6 +58,7 @@ interface AppContextValue {
   reorderItems: (ordered: ShoppingItem[]) => Promise<void>
 
   addExpense:    (data: Omit<Expense, 'id' | 'created_at'>) => Promise<void>
+  updateExpense: (id: string, data: Partial<Omit<Expense, 'id' | 'created_at'>>) => Promise<void>
   deleteExpense: (id: string) => Promise<void>
 
   addSettlement:    (data: Omit<Settlement, 'id' | 'created_at'>) => Promise<void>
@@ -344,6 +345,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (row) setExpenses((a) => upsert(a, row as Expense).sort(byDateDesc))
   }
 
+  const updateExpense = async (id: string, data: Partial<Omit<Expense, 'id' | 'created_at'>>) => {
+    setExpenses((a) => a.map((x) => (x.id === id ? { ...x, ...data } : x)).sort(byDateDesc))
+    const { error } = await financeService.updateExpense(id, data)
+    if (error) dbErr('Ausgabe konnte nicht gespeichert werden.')
+  }
+
   const deleteExpense = async (id: string) => {
     setExpenses((a) => removeById(a, id))
     const { error } = await financeService.deleteExpense(id)
@@ -400,6 +407,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     deleteItem,
     reorderItems,
     addExpense,
+    updateExpense,
     deleteExpense,
     addSettlement,
     deleteSettlement,

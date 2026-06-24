@@ -25,6 +25,7 @@ import AddItemForm from './AddItemForm'
 import ItemContextMenu, { type PartialInfo } from './ItemContextMenu'
 import SortableItem from './SortableItem'
 import UndoToast from '../ui/UndoToast'
+import { SkeletonBlock } from '../ui/Skeleton'
 import { PlusIcon, ChevronRightIcon, StoreIcon, TagIcon, GripIcon, CalendarIcon, NameSortIcon, GroupingIcon, SortingIcon } from '../ui/Icon'
 
 interface Group {
@@ -90,8 +91,21 @@ function OverlayRow({ item }: { item: ShoppingItem }) {
   )
 }
 
+function ShoppingListSkeleton() {
+  return (
+    <div className="mx-auto max-w-2xl space-y-3">
+      <SkeletonBlock className="h-[52px] w-full" />
+      <SkeletonBlock className="h-[72px] w-full" />
+      <SkeletonBlock className="h-[56px] w-full" />
+      <SkeletonBlock className="h-[72px] w-full" />
+      <SkeletonBlock className="h-[56px] w-full" />
+    </div>
+  )
+}
+
 export default function ShoppingList() {
   const {
+    loading,
     items, stores, categories,
     reorderItems, updateItem, deleteItem,
     addStore, addCategory, deleteCategory,
@@ -377,6 +391,8 @@ export default function ShoppingList() {
     groupInputRef.current?.focus()
   }
 
+  if (loading) return <ShoppingListSkeleton />
+
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-28">
       {/* Steuerleiste: Sortierung (links) + Gruppierung (rechts) */}
@@ -526,6 +542,7 @@ export default function ShoppingList() {
                                   key={item.id}
                                   item={item}
                                   onLongPress={(it, rect) => setMenu({ item: it, rect })}
+                                  onDelete={handleDirectDelete}
                                   dragDisabled={sort !== 'custom'}
                                 />
                               ))}

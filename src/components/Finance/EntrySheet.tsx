@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { motion, useAnimation } from 'framer-motion'
 import { useApp } from '../../context/AppContext'
-import { MoneyFlyIcon, SwapIcon } from '../ui/Icon'
+import { MoneyFlyIcon, PencilIcon, SwapIcon } from '../ui/Icon'
 import AvatarCircle from '../ui/AvatarCircle'
 import BottomSheet from '../ui/BottomSheet'
 import { computeBalance, formatDate, todayISO } from '../../lib/utils'
-import type { Person, Split } from '../../types'
+import type { Expense, Person, Split } from '../../types'
 
 // ── Animated tab (like ShoppingList sort pills) ───────────────────────────────
 function TypeTab({
@@ -222,8 +222,16 @@ function DateRow({ value, onChange }: { value: string; onChange: (v: string) => 
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function EntrySheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { addExpense, addSettlement, expenses, settlements, nameA, nameB, myRole, profileA, profileB } = useApp()
+export default function EntrySheet({
+  open,
+  onClose,
+  editExpense,
+}: {
+  open: boolean
+  onClose: () => void
+  editExpense?: Expense | null
+}) {
+  const { addExpense, updateExpense, addSettlement, expenses, settlements, nameA, nameB, myRole, profileA, profileB } = useApp()
 
   const myPerson: Person = myRole ?? 'A'
 
@@ -250,12 +258,23 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
 
   useEffect(() => {
     if (open) {
-      setAmount(''); setDescription(''); setDate(todayISO())
-      setPaidBy(myPerson); setSplit('both')
-      setPayAmount(''); setPayDate(todayISO()); setPayFrom(myPerson)
-      setBusy(false); setType('expense')
+      if (editExpense) {
+        setType('expense')
+        setAmount(editExpense.amount.toFixed(2).replace('.', ','))
+        setDescription(editExpense.description)
+        setDate(editExpense.date)
+        setPaidBy(editExpense.paid_by)
+        setSplit(editExpense.split)
+        setPayAmount(''); setPayDate(todayISO()); setPayFrom(myPerson)
+        setBusy(false)
+      } else {
+        setAmount(''); setDescription(''); setDate(todayISO())
+        setPaidBy(myPerson); setSplit('both')
+        setPayAmount(''); setPayDate(todayISO()); setPayFrom(myPerson)
+        setBusy(false); setType('expense')
+      }
     }
-  }, [open, myPerson])
+  }, [open, myPerson, editExpense])
 
   useEffect(() => {
     if (open && type === 'settlement' && !payAmount) prefillPayment()
@@ -267,7 +286,11 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
     const value = parseFloat(amount.replace(',', '.'))
     if (!description.trim() || !value || value <= 0) return
     setBusy(true)
-    await addExpense({ amount: value, description: description.trim(), date, paid_by: paidBy, split })
+    if (editExpense) {
+      await updateExpense(editExpense.id, { amount: value, description: description.trim(), date, paid_by: paidBy, split })
+    } else {
+      await addExpense({ amount: value, description: description.trim(), date, paid_by: paidBy, split })
+    }
     setBusy(false)
     onClose()
   }
@@ -287,21 +310,31 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
 
   return (
     <BottomSheet open={open} onClose={onClose}>
-            {/* Type toggle — icons + animation */}
-            <div className="mx-5 mt-2 flex rounded-2xl bg-zinc-100 p-1">
-              <TypeTab
-                label="Ausgabe"
-                icon={<MoneyFlyIcon size={16} />}
-                active={type === 'expense'}
-                onClick={() => setType('expense')}
-              />
-              <TypeTab
-                label="Zahlung"
-                icon={<SwapIcon size={16} />}
-                active={type === 'settlement'}
-                onClick={() => { setType('settlement'); if (!payAmount) prefillPayment() }}
-              />
-            </div>
+            {editExpense ? (
+              /* Edit-Modus: Titel statt Tab-Toggle */
+              <div className="mx-5 mt-3 flex items-center gap-2">
+                <PencilIcon size={15} className="shrink-0 text-zinc-400" />
+                <p className="text-[15px] font-semibold tracking-[-0.2px] text-zinc-900">
+                  Ausgabe bearbeiten
+                </p>
+              </div>
+            ) : (
+              /* Neuer Eintrag: Type toggle — icons + animation */
+              <div className="mx-5 mt-2 flex rounded-2xl bg-zinc-100 p-1">
+                <TypeTab
+                  label="Ausgabe"
+                  icon={<MoneyFlyIcon size={16} />}
+                  active={type === 'expense'}
+                  onClick={() => setType('expense')}
+                />
+                <TypeTab
+                  label="Zahlung"
+                  icon={<SwapIcon size={16} />}
+                  active={type === 'settlement'}
+                  onClick={() => { setType('settlement'); if (!payAmount) prefillPayment() }}
+                />
+              </div>
+            )}
 
             {/*
               CSS Grid stacking: both forms occupy the same grid cell.
@@ -370,13 +403,13 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
                     disabled={busy || !amount.trim() || !description.trim()}
                     className="w-full rounded-2xl bg-brand-600 py-3.5 text-[16px] font-bold tracking-[-0.2px] text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-30"
                   >
-                    {busy ? 'Speichern…' : 'Eintragen'}
+                    {busy ? 'Speichern…' : editExpense ? 'Speichern' : 'Eintragen'}
                   </button>
                 </div>
               </motion.form>
 
-              {/* ── Zahlung ── */}
-              <motion.form
+              {/* ── Zahlung — nur im Neu-Modus ── */}
+              {!editExpense && <motion.form
                 onSubmit={submitPayment}
                 initial={false}
                 animate={{ opacity: type === 'settlement' ? 1 : 0, y: type === 'settlement' ? 0 : 6 }}
@@ -439,7 +472,7 @@ export default function EntrySheet({ open, onClose }: { open: boolean; onClose: 
                     {busy ? 'Speichern…' : 'Zahlung vermerken'}
                   </button>
                 </div>
-              </motion.form>
+              </motion.form>}
 
             </div>
     </BottomSheet>

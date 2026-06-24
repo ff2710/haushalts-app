@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react'
 import { motion, AnimatePresence, useAnimation } from 'framer-motion'
 import { useAuth } from './context/AuthContext'
-import { AppProvider, useApp } from './context/AppContext'
+import { AppProvider } from './context/AppContext'
 import Login from './components/Auth/Login'
 import Onboarding from './components/Auth/Onboarding'
 import Spinner from './components/ui/Spinner'
@@ -49,7 +49,6 @@ function NavIcon({ children, active }: { children: ReactNode; active: boolean })
 }
 
 function Shell() {
-  const { loading } = useApp()
   const [tab, setTab] = useState<Tab>('shopping')
   const touchStart = useRef<{ x: number; y: number; ignore: boolean } | null>(null)
 
@@ -100,29 +99,23 @@ function Shell() {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Spinner />
-          </div>
-        ) : (
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={tab}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
-            >
-              {tab === 'shopping' ? (
-                <ShoppingList />
-              ) : tab === 'finance' ? (
-                <Finance />
-              ) : (
-                <Settings />
-              )}
-            </motion.div>
-          </AnimatePresence>
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
+          >
+            {tab === 'shopping' ? (
+              <ShoppingList />
+            ) : tab === 'finance' ? (
+              <Finance />
+            ) : (
+              <Settings />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Bottom Navigation: 'flex-none' statt 'fixed bottom-0...'. mt-auto drückt sie ganz nach unten. */}

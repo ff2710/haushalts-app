@@ -6,13 +6,28 @@ import { UNDO_DELAY_MS } from '../../constants'
 import BalanceCard from './BalanceCard'
 import History from './History'
 import EntrySheet from './EntrySheet'
+import { SkeletonBlock } from '../ui/Skeleton'
+import type { Expense } from '../../types'
+
+function FinanceSkeleton() {
+  return (
+    <div className="mx-auto max-w-2xl space-y-4">
+      <SkeletonBlock className="h-36 w-full" />
+      <SkeletonBlock className="h-8 w-32" />
+      <SkeletonBlock className="h-[68px] w-full" />
+      <SkeletonBlock className="h-[68px] w-full" />
+      <SkeletonBlock className="h-[68px] w-full" />
+    </div>
+  )
+}
 
 export default function Finance() {
-  const { deleteExpense, deleteSettlement } = useApp()
+  const { loading, deleteExpense, deleteSettlement } = useApp()
 
-  const [sheetOpen, setSheetOpen]   = useState(false)
-  const [hiddenId, setHiddenId]     = useState<string | null>(null)
-  const [undoLabel, setUndoLabel]   = useState<string | null>(null)
+  const [sheetOpen, setSheetOpen]         = useState(false)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [hiddenId, setHiddenId]           = useState<string | null>(null)
+  const [undoLabel, setUndoLabel]         = useState<string | null>(null)
 
   const pendingRef = useRef<{ kind: 'expense' | 'settlement'; id: string } | null>(null)
   const timerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -54,11 +69,17 @@ export default function Finance() {
     clearPending()
   }, [])
 
+  if (loading) return <FinanceSkeleton />
+
   return (
       <div className="mx-auto max-w-2xl space-y-4 pb-20">
       <div className="space-y-5 pb-24">
         <BalanceCard />
-        <History onDelete={handleDeleteRequest} hiddenId={hiddenId} />
+        <History
+          onDelete={handleDeleteRequest}
+          onEdit={(expense) => { setEditingExpense(expense); setSheetOpen(true) }}
+          hiddenId={hiddenId}
+        />
       </div>
 
       {/* FAB */}
@@ -71,7 +92,11 @@ export default function Finance() {
       </button>
 
       {/* Entry sheet */}
-      <EntrySheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+      <EntrySheet
+        open={sheetOpen}
+        onClose={() => { setSheetOpen(false); setEditingExpense(null) }}
+        editExpense={editingExpense}
+      />
 
       {/* Undo toast */}
       <AnimatePresence>

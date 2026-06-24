@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useApp } from '../../context/AppContext'
-import { GripIcon } from '../ui/Icon'
+import { GripIcon, TrashIcon } from '../ui/Icon'
 import type { ShoppingItem } from '../../types'
 
 const LONG_PRESS_MS = 450
@@ -11,10 +11,12 @@ const LONG_PRESS_MS = 450
 export default function SortableItem({
   item,
   onLongPress,
+  onDelete,
   dragDisabled = false,
 }: {
   item: ShoppingItem
   onLongPress: (item: ShoppingItem, rect: DOMRect) => void
+  onDelete: (item: ShoppingItem) => void
   dragDisabled?: boolean
 }) {
   const { updateItem } = useApp()
@@ -67,78 +69,94 @@ export default function SortableItem({
       initial={false}
       exit={{ opacity: 0, height: 0, paddingTop: 0, paddingBottom: 0 }}
       transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-      className="flex items-center gap-1.5 overflow-hidden bg-transparent px-3 py-0"
+      className="relative overflow-hidden bg-transparent"
     >
-      {/* Drag-Handle — nur im Modus "Angepasst" sichtbar */}
-      {dragDisabled ? (
-        <div className="w-8 shrink-0" />
-      ) : (
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          className="flex h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center text-zinc-300 transition-colors duration-150 hover:text-zinc-500 active:cursor-grabbing"
-          aria-label="Verschieben"
-        >
-          <GripIcon size={13} />
-        </button>
-      )}
-
-      {/* Checkbox */}
-      <div className="flex shrink-0 items-center justify-center min-h-[44px] min-w-[44px]">
-      <div className="relative flex items-center">
-        <input
-          type="checkbox"
-          checked={item.is_done}
-          onChange={() => updateItem(item.id, { is_done: !item.is_done })}
-          className="peer h-[20px] w-[20px] cursor-pointer appearance-none rounded-full border-2 border-zinc-300 bg-white transition-all duration-150 checked:border-brand-600 checked:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-1"
-        />
-        <svg
-          className="pointer-events-none absolute left-[3px] top-[4px] hidden h-[10px] w-[10px] text-white peer-checked:block"
-          viewBox="0 0 10 8"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polyline points="1,4 4,7 9,1" />
-        </svg>
-      </div>
+      {/* Delete-Panel — erscheint beim Wischen nach links */}
+      <div className="absolute inset-y-0 right-0 flex w-20 items-center justify-center bg-red-500">
+        <TrashIcon size={16} className="text-white" />
       </div>
 
-      {/* Name + Menge – gedrückt halten zum Bearbeiten */}
-      <div
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={clearTimer}
-        onPointerLeave={clearTimer}
-        onPointerCancel={clearTimer}
-        onContextMenu={(e) => e.preventDefault()}
-        className="flex min-w-0 flex-1 cursor-pointer select-none items-baseline gap-1.5 py-1"
-        style={{ WebkitTouchCallout: 'none' }}
+      {/* Swipeable row content */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -80, right: 0 }}
+        dragElastic={{ left: 0.1, right: 0 }}
+        dragSnapToOrigin
+        onDragEnd={(_, info) => {
+          if (info.offset.x < -60 || info.velocity.x < -500) onDelete(item)
+        }}
+        data-no-swipe
+        className="flex items-center gap-1.5 bg-white px-3 py-0"
       >
-        <span
-          className={
-            'truncate text-[14px] font-medium leading-tight transition-colors duration-200 ' +
-            (item.is_done ? 'text-zinc-300 line-through decoration-zinc-300' : 'text-zinc-900')
-          }
+        {/* Drag-Handle — nur im Modus "Angepasst" sichtbar */}
+        {dragDisabled ? (
+          <div className="w-8 shrink-0" />
+        ) : (
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className="flex h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center text-zinc-300 transition-colors duration-150 hover:text-zinc-500 active:cursor-grabbing"
+            aria-label="Verschieben"
+          >
+            <GripIcon size={13} />
+          </button>
+        )}
+
+        {/* Checkbox */}
+        <div className="flex shrink-0 items-center justify-center min-h-[44px] min-w-[44px]">
+          <div className="relative flex items-center">
+            <input
+              type="checkbox"
+              checked={item.is_done}
+              onChange={() => updateItem(item.id, { is_done: !item.is_done })}
+              className="peer h-[20px] w-[20px] cursor-pointer appearance-none rounded-full border-2 border-zinc-300 bg-white transition-all duration-150 checked:border-brand-600 checked:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-1"
+            />
+            <svg
+              className="pointer-events-none absolute left-[3px] top-[4px] hidden h-[10px] w-[10px] text-white peer-checked:block"
+              viewBox="0 0 10 8"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="1,4 4,7 9,1" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Name + Menge – gedrückt halten zum Bearbeiten */}
+        <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={clearTimer}
+          onPointerLeave={clearTimer}
+          onPointerCancel={clearTimer}
+          onContextMenu={(e) => e.preventDefault()}
+          className="flex min-w-0 flex-1 cursor-pointer select-none items-baseline gap-1.5 py-1"
+          style={{ WebkitTouchCallout: 'none' }}
         >
-          {item.name}
-        </span>
-        {qty && (
           <span
             className={
-              'shrink-0 text-[14px] leading-tight ' +
-              (item.is_done ? 'text-zinc-300' : 'text-zinc-400')
+              'truncate text-[14px] font-medium leading-tight transition-colors duration-200 ' +
+              (item.is_done ? 'text-zinc-300 line-through decoration-zinc-300' : 'text-zinc-900')
             }
           >
-            <span className="text-zinc-300">|</span> {qty}
+            {item.name}
           </span>
-        )}
-      </div>
-
-
+          {qty && (
+            <span
+              className={
+                'shrink-0 text-[14px] leading-tight ' +
+                (item.is_done ? 'text-zinc-300' : 'text-zinc-400')
+              }
+            >
+              <span className="text-zinc-300">|</span> {qty}
+            </span>
+          )}
+        </div>
+      </motion.div>
     </motion.div>
   )
 }
