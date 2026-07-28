@@ -267,6 +267,15 @@ export function EmbraceIcon(p: IconProps) {
   )
 }
 
+/** Schließen-Kreuz (Dialoge). */
+export function CloseIcon(p: IconProps) {
+  return (
+    <IconBase {...p}>
+      <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
+    </IconBase>
+  )
+}
+
 // ── Tabs des Persönlich-Bereichs ────────────────────────────────────────────
 // Bewusst eigene Formen, die sich nicht mit den Gemeinsam-Icons (Korb, €)
 // überschneiden — damit auf einen Blick klar ist, in welcher Welt man ist.

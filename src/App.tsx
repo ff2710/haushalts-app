@@ -16,7 +16,7 @@ import PersonalHome from './components/Personal/PersonalHome'
 import Transactions from './components/Personal/Transactions'
 import Accounts from './components/Personal/Accounts'
 import type { Area } from './types'
-import BottomSheet from './components/ui/BottomSheet'
+import Modal from './components/ui/Modal'
 import {
   BasketIcon,
   ChartIcon,
@@ -63,12 +63,13 @@ const AREAS: { id: Area; label: string; Icon: ComponentType<{ size?: number; cla
 ]
 
 // Je Welt ein eigener Akzent — der schnellste Hinweis darauf, wo man gerade ist.
-// Gemeinsam behaelt bewusst das bestehende Brand-Violett (Caro nutzt den
-// Bereich taeglich, da aendert sich optisch nichts); Persoenlich bekommt Teal.
+// Lila fuer Gemeinsam, Gruen fuer Persoenlich. Diese Farben markieren AUSSCHLIESSLICH
+// die Bereichszugehoerigkeit (Tab-Leiste, Header-Symbol, Welt-Umschalter); alles
+// Uebergeordnete laeuft in der Theme-Farbe Anthrazit (`brand`).
 // Vollstaendige Klassennamen, damit Tailwind sie im Build findet.
 const AREA_ACCENT: Record<Area, { text: string; bg: string }> = {
-  shared:   { text: 'text-brand-600', bg: 'bg-brand-600' },
-  personal: { text: 'text-teal-600',  bg: 'bg-teal-600' },
+  shared:   { text: 'text-shared-600',   bg: 'bg-shared-600' },
+  personal: { text: 'text-personal-600', bg: 'bg-personal-600' },
 }
 
 function NavIcon({ children, active }: { children: ReactNode; active: boolean }) {
@@ -275,30 +276,16 @@ function Shell() {
         </div>
       </nav>
 
-      {/* Einstellungen als (nahezu) formatfuellendes Sheet — aus beiden Welten
-          erreichbar. Die Settings-Komponente bleibt unveraendert und bringt
-          ihre eigene Unter-Navigation mit. */}
-      <BottomSheet
+      {/* Einstellungen: uebergeordneter Dialog ueber der gesamten App — aus
+          beiden Welten erreichbar. Die Settings-Komponente bleibt unveraendert
+          und bringt ihre eigene Unter-Navigation mit. */}
+      <Modal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        maxHeight="calc(100dvh - 40px)"
-        draggable={false}
+        title="Einstellungen"
       >
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-5 pt-1 pb-3">
-          <h2 className="text-[17px] font-semibold tracking-[-0.3px] text-zinc-900">
-            Einstellungen
-          </h2>
-          <button
-            onClick={() => setSettingsOpen(false)}
-            className={'text-[15px] font-semibold ' + accent.text}
-          >
-            Fertig
-          </button>
-        </div>
-        <div className="px-4 sm:px-5">
-          <Settings />
-        </div>
-      </BottomSheet>
+        <Settings />
+      </Modal>
     </div>
   )
 }

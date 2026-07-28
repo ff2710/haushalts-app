@@ -1,6 +1,7 @@
-import { type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, type PanInfo, AnimatePresence } from 'framer-motion'
+import { popOverlay, pushOverlay } from '../../lib/overlayLayer'
 
 interface BottomSheetProps {
   open:       boolean
@@ -9,11 +10,13 @@ interface BottomSheetProps {
   maxHeight?: string
   paddingBottom?: string
   /**
-   * Ziehen zum Schliessen. Standard true (Verhalten aller bestehenden Sheets).
-   * Bei langen, scrollbaren Inhalten — etwa den Einstellungen — auf false
-   * setzen: sonst konkurriert die Zieh-Geste mit dem Scrollen.
+   * Hebt das Sheet ueber einen bereits offenen Dialog (Modal, z-[70]/[80]).
+   * Noetig fuer Sheets, die AUS einem Dialog heraus geoeffnet werden — etwa
+   * "Passwort aendern" in den Einstellungen. Ohne das laege das Sheet hinter
+   * dem Dialog, da beide per Portal an <body> haengen und rein die z-Ebene
+   * entscheidet. Standard false = bisheriges Verhalten.
    */
-  draggable?: boolean
+  elevated?: boolean
 }
 
 export default function BottomSheet({
@@ -22,13 +25,32 @@ export default function BottomSheet({
   children,
   maxHeight     = 'calc(100dvh - 56px)',
   paddingBottom = 'calc(env(safe-area-inset-bottom) + 64px)',
-  draggable     = true,
+  elevated      = false,
 }: BottomSheetProps) {
+  const zScrim = elevated ? 'z-[90]'  : 'z-[30]'
+  const zPanel = elevated ? 'z-[100]' : 'z-[40]'
+
+  // Als oberste Ebene anmelden, solange offen: der darunterliegende Dialog
+  // darf dann nicht mehr auf Escape reagieren. Zusaetzlich schliesst Escape
+  // dieses Sheet selbst.
+  useEffect(() => {
+    if (!open || !elevated) return
+    pushOverlay()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      popOverlay()
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open, elevated, onClose])
+
   // Direkt an <body> haengen. Grund: Das Panel wird per framer-motion
   // transformiert, und ein transformierter Vorfahre wird zum Bezugsrahmen fuer
-  // `position: fixed`-Kinder. Ohne Portal waeren verschachtelte Overlays (etwa
-  // das Passwort-Sheet in den Einstellungen) samt Abdunklung auf die Breite des
-  // aeusseren Sheets begrenzt statt auf den ganzen Bildschirm.
+  // `position: fixed`-Kinder. Ohne Portal waeren verschachtelte Overlays samt
+  // Abdunklung auf die Breite des aeusseren Containers begrenzt statt auf den
+  // ganzen Bildschirm.
   return createPortal(
     <AnimatePresence>
       {open && (
@@ -39,7 +61,7 @@ export default function BottomSheet({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 z-[30] bg-black/35"
+            className={'fixed inset-0 bg-black/35 ' + zScrim}
           />
 
           <motion.div
@@ -47,18 +69,17 @@ export default function BottomSheet({
             animate={{ y: 0 }}
             exit={{ y: '110%' }}
             transition={{ type: 'spring', stiffness: 420, damping: 38 }}
-            {...(draggable
-              ? {
-                  drag: 'y' as const,
-                  dragConstraints: { top: 0, bottom: 0 },
-                  dragElastic: { top: 0, bottom: 0.45 },
-                  onDragEnd: (_: unknown, info: PanInfo) => {
-                    if (info.offset.y > 90 || info.velocity.y > 600) onClose()
-                  },
-                }
-              : {})}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.45 }}
+            onDragEnd={(_: unknown, info: PanInfo) => {
+              if (info.offset.y > 90 || info.velocity.y > 600) onClose()
+            }}
             data-no-swipe
-            className="fixed inset-x-0 bottom-0 z-[40] mx-auto max-w-2xl overflow-y-auto rounded-t-3xl bg-white"
+            className={
+              'fixed inset-x-0 bottom-0 mx-auto max-w-2xl overflow-y-auto rounded-t-3xl bg-white ' +
+              zPanel
+            }
             style={{
               maxHeight,
               paddingBottom,
@@ -66,12 +87,7 @@ export default function BottomSheet({
             }}
           >
             <div className="flex justify-center pt-3 pb-1">
-              <div
-                className={
-                  'h-1.5 w-10 rounded-full bg-zinc-200 ' +
-                  (draggable ? 'cursor-grab active:cursor-grabbing' : '')
-                }
-              />
+              <div className="h-1.5 w-10 cursor-grab rounded-full bg-zinc-200 active:cursor-grabbing" />
             </div>
             {children}
           </motion.div>

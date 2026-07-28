@@ -13,6 +13,7 @@ import { CameraIcon, ChevronRightIcon, PlusIcon, TrashIcon } from '../ui/Icon'
 import AvatarCircle from '../ui/AvatarCircle'
 import BottomSheet from '../ui/BottomSheet'
 import PasswordForm from '../Auth/PasswordForm'
+import { popOverlay, pushOverlay } from '../../lib/overlayLayer'
 import type { SettingsView } from '../../types'
 
 const EINKAUF_ROWS: { key: SettingsView; label: string; sg: string; pl: string }[] = [
@@ -94,9 +95,14 @@ export default function Settings() {
   const [showPasswordSheet, setShowPassword]  = useState(false)
   const inputRef     = useRef<HTMLInputElement>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
+  /** Zuletzt gespeicherter Name — siehe commitName (verhindert Doppel-Writes). */
+  const lastSavedName = useRef<string | null>(null)
 
   useEffect(() => {
-    if (profile) setMyName(profile.name)
+    if (profile) {
+      setMyName(profile.name)
+      lastSavedName.current = profile.name
+    }
   }, [profile])
 
   useEffect(() => {
@@ -104,16 +110,42 @@ export default function Settings() {
     setAddError('')
   }, [view])
 
+  // Das Reset-Modal liegt ueber dem Einstellungen-Dialog — anmelden, damit
+  // Escape nicht den ganzen Dialog schliesst, waehrend die Rueckfrage offen ist.
+  useEffect(() => {
+    if (!showResetModal) return
+    pushOverlay()
+    return () => popOverlay()
+  }, [showResetModal])
+
   const go   = (to: SettingsView) => setView(to)
   const back = () => setView('list')
 
-  const saveName = async (e: FormEvent) => {
-    e.preventDefault()
+  // Namen uebernehmen. Wird sowohl vom Speichern-Knopf als auch beim Verlassen
+  // des Feldes aufgerufen: Aenderungen greifen damit sofort und gehen nicht
+  // verloren, wenn die Einstellungen geschlossen werden, ohne zu speichern.
+  //
+  // Beide Wege koennen unmittelbar nacheinander feuern — ein Klick auf
+  // "Speichern" loest erst blur des Feldes aus, dann submit. `lastSavedName`
+  // haelt den zuletzt geschriebenen Wert fest (der Context-State `profile`
+  // hinkt waehrend des laufenden Requests noch hinterher) und verhindert so
+  // den doppelten Schreibvorgang.
+  const commitName = async () => {
     const trimmed = myName.trim()
-    if (!trimmed) return
-    await updateProfileName(trimmed)
+    if (!trimmed || trimmed === lastSavedName.current) return
+    lastSavedName.current = trimmed
+    const { error } = await updateProfileName(trimmed)
+    if (error) {
+      lastSavedName.current = profile?.name ?? null // erneuter Versuch moeglich
+      return
+    }
     setSavedName(true)
     setTimeout(() => setSavedName(false), 2000)
+  }
+
+  const saveName = async (e: FormEvent) => {
+    e.preventDefault()
+    await commitName()
   }
 
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -342,6 +374,7 @@ export default function Settings() {
           <input
             value={myName}
             onChange={(e) => setMyName(e.target.value)}
+            onBlur={() => void commitName()}
             placeholder="Dein Name"
             className="min-w-0 w-32 bg-transparent text-right text-[15px] font-medium text-zinc-900 placeholder:text-zinc-400 focus:outline-none"
           />
@@ -519,7 +552,9 @@ export default function Settings() {
       </AnimatePresence>
 
       {/* Passwort ändern */}
-      <BottomSheet open={showPasswordSheet} onClose={() => setShowPassword(false)}>
+      {/* elevated: wird aus dem Einstellungen-Dialog heraus geoeffnet und muss
+          deshalb ueber ihm liegen. */}
+      <BottomSheet open={showPasswordSheet} onClose={() => setShowPassword(false)} elevated>
         <div className="px-5 pt-2">
           <h2 className="text-[17px] font-semibold tracking-[-0.3px] text-zinc-900">
             Passwort ändern
