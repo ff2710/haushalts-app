@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ComponentType, type ReactNode, type T
 import { motion, AnimatePresence, useAnimation } from 'framer-motion'
 import { useAuth } from './context/AuthContext'
 import { AppProvider } from './context/AppContext'
+import { PersonalProvider } from './context/PersonalContext'
 import Login from './components/Auth/Login'
 import Onboarding from './components/Auth/Onboarding'
 import Spinner from './components/ui/Spinner'
@@ -10,20 +11,44 @@ import OfflineBanner from './components/ui/OfflineBanner'
 import ShoppingList from './components/ShoppingList/ShoppingList'
 import Finance from './components/Finance/Finance'
 import Settings from './components/Settings/Settings'
+import PersonalHome from './components/Personal/PersonalHome'
+import type { Area } from './types'
 import {
   BasketIcon,
   EuroIcon,
   GearIcon,
   HouseIcon,
   HeartIcon,
+  MoneyFlyIcon,
+  PersonIcon,
+  EmbraceIcon,
 } from './components/ui/Icon'
 
-type Tab = 'shopping' | 'finance' | 'settings'
+type Tab = 'shopping' | 'finance' | 'settings' | 'overview'
 
-const TABS: { id: Tab; label: string; Icon: ComponentType<{ size?: number; className?: string }> }[] = [
-  { id: 'shopping', label: 'Einkauf',       Icon: BasketIcon },
-  { id: 'finance',  label: 'Finanzen',      Icon: EuroIcon },
-  { id: 'settings', label: 'Einstellungen', Icon: GearIcon },
+interface TabDef {
+  id: Tab
+  label: string
+  Icon: ComponentType<{ size?: number; className?: string }>
+}
+
+// Zwei getrennte Welten: "Gemeinsam" (geteilte Daten, beide sehen alles) und
+// "Persoenlich" (privat pro Person, per RLS isoliert). Jede Welt hat ihre
+// eigene Tab-Leiste; der Umschalter oben wechselt zwischen ihnen.
+const TABS: Record<Area, TabDef[]> = {
+  shared: [
+    { id: 'shopping', label: 'Einkauf',       Icon: BasketIcon },
+    { id: 'finance',  label: 'Finanzen',      Icon: EuroIcon },
+    { id: 'settings', label: 'Einstellungen', Icon: GearIcon },
+  ],
+  personal: [
+    { id: 'overview', label: 'Übersicht', Icon: MoneyFlyIcon },
+  ],
+}
+
+const AREAS: { id: Area; label: string; Icon: ComponentType<{ size?: number; className?: string }> }[] = [
+  { id: 'shared',   label: 'Gemeinsam',  Icon: EmbraceIcon },
+  { id: 'personal', label: 'Persönlich', Icon: PersonIcon },
 ]
 
 function NavIcon({ children, active }: { children: ReactNode; active: boolean }) {
@@ -49,8 +74,18 @@ function NavIcon({ children, active }: { children: ReactNode; active: boolean })
 }
 
 function Shell() {
-  const [tab, setTab] = useState<Tab>('shopping')
+  const [area, setArea] = useState<Area>('shared')
+  const [tab, setTab]   = useState<Tab>('shopping')
   const touchStart = useRef<{ x: number; y: number; ignore: boolean } | null>(null)
+
+  const tabs = TABS[area]
+
+  // Weltwechsel: immer auf dem ersten Tab der neuen Welt landen.
+  const switchArea = (next: Area) => {
+    if (next === area) return
+    setArea(next)
+    setTab(TABS[next][0].id)
+  }
 
   // Wischen nach links -> nächster Tab, nach rechts -> vorheriger Tab
   const onTouchStart = (e: ReactTouchEvent<HTMLElement>) => {
@@ -68,9 +103,9 @@ function Shell() {
     const dy = t.clientY - s.y
     // Nur eindeutig horizontale Wischer akzeptieren
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6) return
-    const idx = TABS.findIndex((tb) => tb.id === tab)
-    if (dx < 0 && idx < TABS.length - 1) setTab(TABS[idx + 1].id)
-    else if (dx > 0 && idx > 0) setTab(TABS[idx - 1].id)
+    const idx = tabs.findIndex((tb) => tb.id === tab)
+    if (dx < 0 && idx < tabs.length - 1) setTab(tabs[idx + 1].id)
+    else if (dx > 0 && idx > 0) setTab(tabs[idx - 1].id)
   }
 
   return (
@@ -80,15 +115,55 @@ function Shell() {
       
       {/* Header: 'flex-none' statt 'sticky top-0' */}
       <header className="flex-none z-[60] bg-[#F5F5F2]/80 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-2xl items-center gap-2.5 px-5 py-3.5">
+        <div className="mx-auto flex max-w-2xl items-center gap-2.5 px-5 pt-3 pb-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-brand-600 text-white shadow-soft">
             <HouseIcon size={18} />
           </div>
           <h1 className="flex items-center gap-1.5 truncate text-[16px] font-semibold tracking-[-0.3px] text-zinc-900">
-            Haushalt Caro &amp; Fidel
-            <HeartIcon size={15} className="shrink-0 text-[#FF4D4D]" />
+            {area === 'shared' ? (
+              <>
+                Haushalt Caro &amp; Fidel
+                <HeartIcon size={15} className="shrink-0 text-[#FF4D4D]" />
+              </>
+            ) : (
+              'Meine Finanzen'
+            )}
           </h1>
         </div>
+
+        {/* Umschalter zwischen den beiden Welten */}
+        <div className="mx-auto max-w-2xl px-5 pb-2.5">
+          <div className="flex gap-1 rounded-2xl bg-black/[0.05] p-1" data-no-swipe>
+            {AREAS.map(({ id, label, Icon }) => {
+              const active = area === id
+              return (
+                <button
+                  key={id}
+                  onClick={() => switchArea(id)}
+                  className="relative flex-1 rounded-xl px-3 py-1.5 transition-opacity duration-150 active:opacity-70"
+                >
+                  {active && (
+                    <motion.div
+                      layoutId="area-pill"
+                      className="absolute inset-0 rounded-xl bg-white shadow-soft"
+                      transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                    />
+                  )}
+                  <span
+                    className={
+                      'relative flex items-center justify-center gap-1.5 text-[13px] font-medium tracking-[-0.1px] transition-colors duration-200 ' +
+                      (active ? 'text-zinc-900' : 'text-zinc-500')
+                    }
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
         <div className="h-px bg-black/[0.07]" />
       </header>
 
@@ -101,7 +176,7 @@ function Shell() {
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={tab}
+            key={area + ':' + tab}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -111,8 +186,10 @@ function Shell() {
               <ShoppingList />
             ) : tab === 'finance' ? (
               <Finance />
-            ) : (
+            ) : tab === 'settings' ? (
               <Settings />
+            ) : (
+              <PersonalHome />
             )}
           </motion.div>
         </AnimatePresence>
@@ -121,7 +198,7 @@ function Shell() {
       {/* Bottom Navigation: 'flex-none' statt 'fixed bottom-0...'. mt-auto drückt sie ganz nach unten. */}
       <nav className="flex-none z-[60] bg-white/85 backdrop-blur-2xl shadow-[0_-0.5px_0_rgba(0,0,0,0.12)] mt-auto">
         <div className="mx-auto flex max-w-2xl pb-safe">
-          {TABS.map(({ id, label, Icon }) => {
+          {tabs.map(({ id, label, Icon }) => {
             const active = tab === id
             return (
               <button
@@ -177,8 +254,10 @@ export default function App() {
 
   return (
     <AppProvider>
-      <OfflineBanner />
-      {!profile ? <Onboarding /> : <Shell />}
+      <PersonalProvider>
+        <OfflineBanner />
+        {!profile ? <Onboarding /> : <Shell />}
+      </PersonalProvider>
     </AppProvider>
   )
 }

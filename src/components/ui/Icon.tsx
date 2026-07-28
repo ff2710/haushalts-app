@@ -243,3 +243,26 @@ export function SortingIcon(p: IconProps) {
     </IconBase>
   )
 }
+
+export function PersonIcon(p: IconProps) {
+  return (
+    <IconBase {...p}>
+      {/* Kopf + Schulter (Bust) – Persönlich-Bereich */}
+      <circle cx="12" cy="8" r="3.6" />
+      <path d="M5 19.5c0-3.6 3.1-6 7-6s7 2.4 7 6" />
+    </IconBase>
+  )
+}
+
+export function EmbraceIcon(p: IconProps) {
+  return (
+    <IconBase {...p}>
+      {/* Zwei angelehnte Köpfe + angedeutete Umarmung – Gemeinsam-Bereich */}
+      <circle cx="9" cy="8" r="2.8" />
+      <circle cx="15" cy="8" r="2.8" />
+      <path d="M3.5 19.8a5 5 0 0 1 10 0" />
+      <path d="M10.5 19.8a5 5 0 0 1 10 0" />
+      <path d="M8.2 13c2.4 1.7 5.2 1.7 7.6 0" />
+    </IconBase>
+  )
+}

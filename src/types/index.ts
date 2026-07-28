@@ -69,3 +69,46 @@ export interface Settlement {
   note: string | null
   created_at: string
 }
+
+// ---------------------------------------------------------------------------
+// Persoenlich-Bereich (pf_ = personal finance) — privat pro Person, RLS-isoliert.
+// owner_id setzt die Datenbank per Default auth.uid(); das Frontend sendet ihn
+// NIE mit. Deshalb ist er in den Insert-Typen unten ausgeschlossen.
+// ---------------------------------------------------------------------------
+export type Area = 'shared' | 'personal'
+
+export type PfAccountType =
+  | 'giro'
+  | 'tagesgeld'
+  | 'kreditkarte'
+  | 'depot'
+  | 'festgeld'
+  | 'bar'
+  | 'sonstiges'
+
+export type PfCategoryType = 'income' | 'expense'
+
+export interface PfAccount {
+  id: string
+  owner_id: string
+  name: string
+  type: PfAccountType
+  is_hub: boolean
+  is_shared_ref: boolean
+  position: number
+  created_at: string
+}
+
+export interface PfCategory {
+  id: string
+  owner_id: string
+  name: string
+  type: PfCategoryType
+  color: string
+  monthly_budget: number | null
+  created_at: string
+}
+
+/** Felder, die das Frontend beim Anlegen schicken darf (ohne owner_id!). */
+export type PfAccountInput = Omit<PfAccount, 'id' | 'owner_id' | 'created_at'>
+export type PfCategoryInput = Omit<PfCategory, 'id' | 'owner_id' | 'created_at'>

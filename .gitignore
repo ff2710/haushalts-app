@@ -8,3 +8,11 @@ dist-ssr
 *.log
 .vscode/*
 !.vscode/extensions.json
+
+# Lokale Claude-Code-Berechtigungen (pro Rechner, nicht teilen)
+.claude/settings.local.json
+
+# Daten-Backups enthalten personenbezogene und Finanzdaten.
+# Dieses Repo ist oeffentlich -> Backups gehoeren nie hier hinein.
+docs/backups/
+*.backup.json
