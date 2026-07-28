@@ -18,9 +18,14 @@ export const TABLE = {
   UNITS:          'units',
 
   // Persoenlich-Bereich (privat pro Person, RLS owner_id = auth.uid())
-  PF_ACCOUNTS:    'pf_accounts',
-  PF_CATEGORIES:  'pf_categories',
+  PF_ACCOUNTS:       'pf_accounts',
+  PF_CATEGORIES:     'pf_categories',
+  PF_TRANSACTIONS:   'pf_transactions',
+  PF_IMPORT_BATCHES: 'pf_import_batches',
 } as const
+
+/** Wie viele Umsaetze die Liste initial laedt. */
+export const PF_TX_PAGE_SIZE = 100
 
 /** Standard-Kategorien, die beim ersten Oeffnen des Persoenlich-Bereichs
  *  je Person angelegt werden (Port aus dem Finanztracker). */

@@ -11,6 +11,8 @@ import { useApp } from '../../context/AppContext'
 import { useAuth } from '../../context/AuthContext'
 import { CameraIcon, ChevronRightIcon, PlusIcon, TrashIcon } from '../ui/Icon'
 import AvatarCircle from '../ui/AvatarCircle'
+import BottomSheet from '../ui/BottomSheet'
+import PasswordForm from '../Auth/PasswordForm'
 import type { SettingsView } from '../../types'
 
 const EINKAUF_ROWS: { key: SettingsView; label: string; sg: string; pl: string }[] = [
@@ -89,6 +91,7 @@ export default function Settings() {
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [showResetModal, setShowResetModal]   = useState(false)
   const [resetBusy, setResetBusy]             = useState(false)
+  const [showPasswordSheet, setShowPassword]  = useState(false)
   const inputRef     = useRef<HTMLInputElement>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
@@ -265,6 +268,13 @@ export default function Settings() {
           <div className={rowCls}>
             <span className="truncate text-[14px] text-zinc-400">{session?.user.email}</span>
           </div>
+          {sep}
+          <button
+            onClick={() => setShowPassword(true)}
+            className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
+          >
+            <span className="text-[15px] font-medium text-zinc-900">Passwort ändern</span>
+          </button>
           {sep}
           <button
             onClick={() => setShowResetModal(true)}
@@ -507,6 +517,19 @@ export default function Settings() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Passwort ändern */}
+      <BottomSheet open={showPasswordSheet} onClose={() => setShowPassword(false)}>
+        <div className="px-5 pt-2">
+          <h2 className="text-[17px] font-semibold tracking-[-0.3px] text-zinc-900">
+            Passwort ändern
+          </h2>
+          <p className="mt-1 mb-4 text-[13px] leading-snug text-zinc-500">
+            Du bleibst auf diesem Gerät angemeldet.
+          </p>
+          <PasswordForm onDone={() => setShowPassword(false)} />
+        </div>
+      </BottomSheet>
     </>
   )
 }

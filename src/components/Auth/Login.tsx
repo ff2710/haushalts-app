@@ -2,20 +2,43 @@ import { useState, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
 
+type Mode = 'login' | 'signup' | 'reset'
+
 export default function Login() {
-  const { signIn, signUp } = useAuth()
-  const [mode, setMode]         = useState<'login' | 'signup'>('login')
+  const { signIn, signUp, resetPassword } = useAuth()
+  const [mode, setMode]         = useState<Mode>('login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState<string | null>(null)
   const [info, setInfo]         = useState<string | null>(null)
   const [busy, setBusy]         = useState(false)
 
+  const switchMode = (next: Mode) => {
+    setMode(next)
+    setError(null)
+    setInfo(null)
+  }
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
     setInfo(null)
     setBusy(true)
+
+    if (mode === 'reset') {
+      const { error } = await resetPassword(email.trim())
+      setBusy(false)
+      // Bewusst dieselbe Meldung, egal ob die Adresse existiert — sonst liesse
+      // sich hier durchprobieren, wer einen Account hat.
+      if (error) setError(error)
+      else
+        setInfo(
+          'Wenn es zu dieser Adresse einen Account gibt, ist eine Mail mit einem ' +
+          'Link zum Zurücksetzen unterwegs. Der Link ist nur begrenzt gültig.'
+        )
+      return
+    }
+
     const fn = mode === 'login' ? signIn : signUp
     const { error } = await fn(email.trim(), password)
     setBusy(false)
@@ -53,7 +76,11 @@ export default function Login() {
               Haushalt
             </h1>
             <p className="mt-1.5 text-[14px] text-zinc-500">
-              {mode === 'login' ? 'Anmelden, um fortzufahren' : 'Neuen Account erstellen'}
+              {mode === 'login'
+                ? 'Anmelden, um fortzufahren'
+                : mode === 'signup'
+                  ? 'Neuen Account erstellen'
+                  : 'Passwort zurücksetzen'}
             </p>
           </div>
 
@@ -73,21 +100,34 @@ export default function Login() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="block text-[13px] font-medium text-zinc-600">
-                Passwort
-              </label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={inputCls}
-                placeholder="••••••••"
-              />
-            </div>
+            {mode !== 'reset' && (
+              <div className="space-y-1.5">
+                <div className="flex items-baseline justify-between">
+                  <label className="block text-[13px] font-medium text-zinc-600">
+                    Passwort
+                  </label>
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => switchMode('reset')}
+                      className="text-[12px] font-medium text-brand-600 transition-opacity duration-150 hover:opacity-75"
+                    >
+                      Passwort vergessen?
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={inputCls}
+                  placeholder="••••••••"
+                />
+              </div>
+            )}
 
             <AnimatePresence mode="wait">
               {error && (
@@ -121,23 +161,37 @@ export default function Login() {
               disabled={busy}
               className="mt-1 w-full rounded-xl bg-brand-600 py-3 text-[15px] font-semibold text-white transition-all duration-150 hover:bg-brand-700 active:scale-[0.97] disabled:opacity-55"
             >
-              {busy ? 'Bitte warten…' : mode === 'login' ? 'Anmelden' : 'Registrieren'}
+              {busy
+                ? 'Bitte warten…'
+                : mode === 'login'
+                  ? 'Anmelden'
+                  : mode === 'signup'
+                    ? 'Registrieren'
+                    : 'Link zum Zurücksetzen schicken'}
             </button>
           </form>
 
           <div className="mt-6 text-center text-[13px] text-zinc-500">
-            {mode === 'login' ? 'Noch kein Account?' : 'Schon registriert?'}{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setMode(mode === 'login' ? 'signup' : 'login')
-                setError(null)
-                setInfo(null)
-              }}
-              className="font-semibold text-brand-600 transition-opacity duration-150 hover:opacity-75"
-            >
-              {mode === 'login' ? 'Registrieren' : 'Anmelden'}
-            </button>
+            {mode === 'reset' ? (
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className="font-semibold text-brand-600 transition-opacity duration-150 hover:opacity-75"
+              >
+                Zurück zur Anmeldung
+              </button>
+            ) : (
+              <>
+                {mode === 'login' ? 'Noch kein Account?' : 'Schon registriert?'}{' '}
+                <button
+                  type="button"
+                  onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
+                  className="font-semibold text-brand-600 transition-opacity duration-150 hover:opacity-75"
+                >
+                  {mode === 'login' ? 'Registrieren' : 'Anmelden'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </motion.div>

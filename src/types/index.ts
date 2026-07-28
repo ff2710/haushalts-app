@@ -109,6 +109,55 @@ export interface PfCategory {
   created_at: string
 }
 
+export type PfTransactionSource = 'manual' | 'csv'
+
+export interface PfTransaction {
+  id: string
+  owner_id: string
+  date: string
+  /** Richtung. Der Betrag ist IMMER positiv — nie negativ in der DB. */
+  type: PfCategoryType
+  amount: number
+  description: string
+  account_id: string | null
+  category_id: string | null
+  import_batch_id: string | null
+  source: PfTransactionSource
+  source_ref: string | null
+  dedup_key: string
+  created_at: string
+}
+
+export interface PfImportBatch {
+  id: string
+  owner_id: string
+  filename: string
+  row_count: number
+  imported_at: string
+}
+
 /** Felder, die das Frontend beim Anlegen schicken darf (ohne owner_id!). */
 export type PfAccountInput = Omit<PfAccount, 'id' | 'owner_id' | 'created_at'>
 export type PfCategoryInput = Omit<PfCategory, 'id' | 'owner_id' | 'created_at'>
+
+/** dedup_key fehlt bewusst: den berechnet der personalService zentral, damit
+ *  ihn kein Aufrufpfad vergessen kann. */
+export type PfTransactionInput = Omit<
+  PfTransaction,
+  'id' | 'owner_id' | 'created_at' | 'dedup_key'
+>
+
+/** Eine Zeile aus der CSV, nachdem sie zugeordnet und geprüft wurde. */
+export interface ImportRow {
+  date: string
+  type: PfCategoryType
+  amount: number
+  description: string
+  /** Gesetzt, wenn die Dubletten-Regel eine Übereinstimmung gefunden hat —
+   *  entweder im Bestand oder weiter oben in derselben Datei. Bewusst nur die
+   *  fürs Review nötigen Felder, damit hier keine halbe Transaktion vorgetäuscht
+   *  wird. */
+  duplicateOf: { date: string; description?: string | null } | null
+  /** Entscheidung des Menschen im Review-Screen. */
+  include: boolean
+}

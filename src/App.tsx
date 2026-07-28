@@ -5,6 +5,7 @@ import { AppProvider } from './context/AppContext'
 import { PersonalProvider } from './context/PersonalContext'
 import Login from './components/Auth/Login'
 import Onboarding from './components/Auth/Onboarding'
+import ResetPassword from './components/Auth/ResetPassword'
 import Spinner from './components/ui/Spinner'
 import ErrorToast from './components/ui/ErrorToast'
 import OfflineBanner from './components/ui/OfflineBanner'
@@ -12,6 +13,8 @@ import ShoppingList from './components/ShoppingList/ShoppingList'
 import Finance from './components/Finance/Finance'
 import Settings from './components/Settings/Settings'
 import PersonalHome from './components/Personal/PersonalHome'
+import Transactions from './components/Personal/Transactions'
+import Accounts from './components/Personal/Accounts'
 import type { Area } from './types'
 import {
   BasketIcon,
@@ -22,9 +25,10 @@ import {
   MoneyFlyIcon,
   PersonIcon,
   EmbraceIcon,
+  StoreIcon,
 } from './components/ui/Icon'
 
-type Tab = 'shopping' | 'finance' | 'settings' | 'overview'
+type Tab = 'shopping' | 'finance' | 'settings' | 'overview' | 'transactions' | 'accounts'
 
 interface TabDef {
   id: Tab
@@ -42,7 +46,9 @@ const TABS: Record<Area, TabDef[]> = {
     { id: 'settings', label: 'Einstellungen', Icon: GearIcon },
   ],
   personal: [
-    { id: 'overview', label: 'Übersicht', Icon: MoneyFlyIcon },
+    { id: 'overview',     label: 'Übersicht', Icon: MoneyFlyIcon },
+    { id: 'transactions', label: 'Umsätze',   Icon: EuroIcon },
+    { id: 'accounts',     label: 'Konten',    Icon: StoreIcon },
   ],
 }
 
@@ -188,6 +194,10 @@ function Shell() {
               <Finance />
             ) : tab === 'settings' ? (
               <Settings />
+            ) : tab === 'transactions' ? (
+              <Transactions />
+            ) : tab === 'accounts' ? (
+              <Accounts />
             ) : (
               <PersonalHome />
             )}
@@ -240,7 +250,7 @@ function Shell() {
 }
 
 export default function App() {
-  const { session, profile, loading } = useAuth()
+  const { session, profile, loading, recovery } = useAuth()
 
   if (loading) {
     return (
@@ -251,6 +261,9 @@ export default function App() {
   }
 
   if (!session) return <Login />
+
+  // Ueber den Reset-Link hereingekommen: erst neues Passwort setzen.
+  if (recovery) return <ResetPassword />
 
   return (
     <AppProvider>
