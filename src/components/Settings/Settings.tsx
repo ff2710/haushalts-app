@@ -213,22 +213,26 @@ export default function Settings() {
   const card    = 'overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-black/[0.05]'
   const rowCls  = 'flex items-center justify-between gap-3 px-4 py-[13px]'
   const sep     = <div className="mx-4 h-px bg-zinc-100" />
-  const sLabel  = 'mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400'
+  const sLabel  = 'px-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400'
   // Bereichs-Abschnitte tragen die Farbe ihrer Welt (lila = Gemeinsam), damit
   // sofort klar ist, worauf sich die Einstellungen darunter auswirken.
   // Globale Abschnitte bleiben bewusst neutral.
-  const sLabelShared =
-    'mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-shared-600'
+  const sLabelShared = 'px-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-shared-600'
+  // Eine Zeile Klartext je Abschnitt: sagt, wie weit die Einstellungen darunter
+  // reichen. Wichtiger als Farbe, weil eindeutig.
+  const sHint   = 'mb-2 mt-1 px-1 text-[12px] leading-snug text-zinc-400'
 
   // ── Views ────────────────────────────────────────────────────────────────────
 
   const listView: ReactNode = (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* ── Account ───────────────────────────────────────────────────────────
           Global: wirkt unabhaengig davon, in welcher Welt man gerade ist.
-          Steht zuerst, weil es das ueberall Relevante ist. */}
+          Steht zuerst, weil es das ueberall Relevante ist. Alles in EINER
+          Karte, damit die Zugehoerigkeit auf einen Blick klar ist. */}
       <div>
         <p className={sLabel}>Account</p>
+        <p className={sHint}>Gilt überall — egal, in welchem Bereich du gerade bist.</p>
         <div className={card}>
           <button
             onClick={() => go('profile')}
@@ -254,9 +258,7 @@ export default function Settings() {
           >
             <span className="text-[15px] font-medium text-zinc-900">Passwort ändern</span>
           </button>
-        </div>
-
-        <div className={`${card} mt-2.5`}>
+          {sep}
           <button
             onClick={() => void signOut()}
             className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
@@ -267,22 +269,19 @@ export default function Settings() {
       </div>
 
       {/* ── Gemeinsam ─────────────────────────────────────────────────────────
-          Betrifft ausschliesslich den geteilten Bereich (Einkaufsliste,
-          gemeinsame Ausgaben). Der lila Punkt entspricht der Bereichsfarbe
-          aus dem Welt-Umschalter. */}
+          Betrifft ausschliesslich den geteilten Bereich. Ebenfalls EINE Karte:
+          Einkauf-Konfiguration, Partner, und ganz unten das Zuruecksetzen. */}
       <div>
-        <p className={sLabelShared}>
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-shared-600" />
-          Gemeinsam
+        <p className={sLabelShared}>Gemeinsam</p>
+        <p className={sHint}>
+          Betrifft nur den geteilten Bereich — Einkaufsliste und gemeinsame Ausgaben. Caro sieht
+          diese Einstellungen ebenfalls.
         </p>
-
-        {/* Einkauf-Konfiguration */}
         <div className={card}>
-          {EINKAUF_ROWS.map(({ key, label, sg, pl }, i) => {
+          {EINKAUF_ROWS.map(({ key, label, sg, pl }) => {
             const count = einkaufCounts[key as keyof typeof einkaufCounts]
             return (
               <div key={key}>
-                {i > 0 && sep}
                 <button
                   onClick={() => go(key)}
                   className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
@@ -295,20 +294,18 @@ export default function Settings() {
                     <ChevronRightIcon size={14} strokeWidth={2.5} className="shrink-0 text-zinc-300" />
                   </span>
                 </button>
+                {sep}
               </div>
             )
           })}
-        </div>
 
-        {/* Partner-Info */}
-        <div className={`${card} mt-2.5`}>
           {partnerProfile ? (
             <div className={rowCls}>
               <div className="flex items-center gap-3">
                 <AvatarCircle
                   name={partnerProfile.name}
                   avatarUrl={partnerProfile.avatar_url}
-                  size={40}
+                  size={36}
                 />
                 <div className="min-w-0">
                   <p className="text-[15px] font-medium text-zinc-900">{partnerProfile.name}</p>
@@ -317,16 +314,16 @@ export default function Settings() {
                   )}
                 </div>
               </div>
+              <span className="shrink-0 text-[13px] text-zinc-400">Partnerin</span>
             </div>
           ) : (
             <div className={rowCls}>
               <span className="text-[14px] text-zinc-400">Noch kein Partner verknüpft</span>
             </div>
           )}
-        </div>
+          {sep}
 
-        {/* Loescht ausschliesslich Gemeinsam-Daten — Warntext im Modal unveraendert. */}
-        <div className={`${card} mt-2.5`}>
+          {/* Loescht ausschliesslich Gemeinsam-Daten — Warntext im Modal unveraendert. */}
           <button
             onClick={() => setShowResetModal(true)}
             className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
@@ -339,9 +336,10 @@ export default function Settings() {
       {/* ── Persönlich ────────────────────────────────────────────────────────
           Platzhalter: Hier kommen spaeter die Einstellungen des privaten
           Bereichs hin (z. B. eigene Kategorien, Budget-Warnschwellen,
-          Kaskaden-Reihenfolge). Label dann in `text-personal-600` mit gruenem
-          Punkt, analog zu "Gemeinsam" oben. Bewusst noch leer — kommt mit den
-          echten Persoenlich-Einstellungen in einer spaeteren Phase. */}
+          Kaskaden-Reihenfolge). Aufbau analog zu "Gemeinsam" oben: Label in
+          `text-personal-600`, darunter eine Zeile Klartext zum Geltungsbereich
+          ("Nur fuer dich sichtbar"), dann EINE Karte. Bewusst noch leer —
+          kommt mit den echten Persoenlich-Einstellungen in einer spaeteren Phase. */}
     </div>
   )
 
