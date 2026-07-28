@@ -214,14 +214,21 @@ export default function Settings() {
   const rowCls  = 'flex items-center justify-between gap-3 px-4 py-[13px]'
   const sep     = <div className="mx-4 h-px bg-zinc-100" />
   const sLabel  = 'mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400'
+  // Bereichs-Abschnitte tragen die Farbe ihrer Welt (lila = Gemeinsam), damit
+  // sofort klar ist, worauf sich die Einstellungen darunter auswirken.
+  // Globale Abschnitte bleiben bewusst neutral.
+  const sLabelShared =
+    'mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-shared-600'
 
   // ── Views ────────────────────────────────────────────────────────────────────
 
   const listView: ReactNode = (
     <div className="space-y-5">
-      {/* Mein Profil */}
+      {/* ── Account ───────────────────────────────────────────────────────────
+          Global: wirkt unabhaengig davon, in welcher Welt man gerade ist.
+          Steht zuerst, weil es das ueberall Relevante ist. */}
       <div>
-        <p className={sLabel}>Mein Profil</p>
+        <p className={sLabel}>Account</p>
         <div className={card}>
           <button
             onClick={() => go('profile')}
@@ -235,12 +242,41 @@ export default function Settings() {
             </div>
             <ChevronRightIcon size={14} strokeWidth={2.5} className="shrink-0 text-zinc-300" />
           </button>
+          {sep}
+          <div className={rowCls}>
+            <span className="text-[15px] text-zinc-500">E-Mail</span>
+            <span className="truncate text-[14px] text-zinc-400">{session?.user.email}</span>
+          </div>
+          {sep}
+          <button
+            onClick={() => setShowPassword(true)}
+            className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
+          >
+            <span className="text-[15px] font-medium text-zinc-900">Passwort ändern</span>
+          </button>
+        </div>
+
+        <div className={`${card} mt-2.5`}>
+          <button
+            onClick={() => void signOut()}
+            className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
+          >
+            <span className="text-[15px] font-medium text-red-500">Abmelden</span>
+          </button>
         </div>
       </div>
 
-      {/* Einkauf */}
+      {/* ── Gemeinsam ─────────────────────────────────────────────────────────
+          Betrifft ausschliesslich den geteilten Bereich (Einkaufsliste,
+          gemeinsame Ausgaben). Der lila Punkt entspricht der Bereichsfarbe
+          aus dem Welt-Umschalter. */}
       <div>
-        <p className={sLabel}>Einkauf</p>
+        <p className={sLabelShared}>
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-shared-600" />
+          Gemeinsam
+        </p>
+
+        {/* Einkauf-Konfiguration */}
         <div className={card}>
           {EINKAUF_ROWS.map(({ key, label, sg, pl }, i) => {
             const count = einkaufCounts[key as keyof typeof einkaufCounts]
@@ -263,12 +299,9 @@ export default function Settings() {
             )
           })}
         </div>
-      </div>
 
-      {/* Haushalt — Partner-Info */}
-      <div>
-        <p className={sLabel}>Haushalt</p>
-        <div className={card}>
+        {/* Partner-Info */}
+        <div className={`${card} mt-2.5`}>
           {partnerProfile ? (
             <div className={rowCls}>
               <div className="flex items-center gap-3">
@@ -291,38 +324,24 @@ export default function Settings() {
             </div>
           )}
         </div>
-      </div>
 
-      {/* Account */}
-      <div>
-        <p className={sLabel}>Account</p>
-        <div className={card}>
-          <div className={rowCls}>
-            <span className="truncate text-[14px] text-zinc-400">{session?.user.email}</span>
-          </div>
-          {sep}
-          <button
-            onClick={() => setShowPassword(true)}
-            className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
-          >
-            <span className="text-[15px] font-medium text-zinc-900">Passwort ändern</span>
-          </button>
-          {sep}
+        {/* Loescht ausschliesslich Gemeinsam-Daten — Warntext im Modal unveraendert. */}
+        <div className={`${card} mt-2.5`}>
           <button
             onClick={() => setShowResetModal(true)}
             className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
           >
             <span className="text-[15px] font-medium text-red-500">Haushalt zurücksetzen</span>
           </button>
-          {sep}
-          <button
-            onClick={() => void signOut()}
-            className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
-          >
-            <span className="text-[15px] font-medium text-red-500">Abmelden</span>
-          </button>
         </div>
       </div>
+
+      {/* ── Persönlich ────────────────────────────────────────────────────────
+          Platzhalter: Hier kommen spaeter die Einstellungen des privaten
+          Bereichs hin (z. B. eigene Kategorien, Budget-Warnschwellen,
+          Kaskaden-Reihenfolge). Label dann in `text-personal-600` mit gruenem
+          Punkt, analog zu "Gemeinsam" oben. Bewusst noch leer — kommt mit den
+          echten Persoenlich-Einstellungen in einer spaeteren Phase. */}
     </div>
   )
 
