@@ -213,14 +213,16 @@ export default function Settings() {
   const card    = 'overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-black/[0.05]'
   const rowCls  = 'flex items-center justify-between gap-3 px-4 py-[13px]'
   const sep     = <div className="mx-4 h-px bg-zinc-100" />
-  const sLabel  = 'px-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400'
-  // Bereichs-Abschnitte tragen die Farbe ihrer Welt (lila = Gemeinsam), damit
-  // sofort klar ist, worauf sich die Einstellungen darunter auswirken.
-  // Globale Abschnitte bleiben bewusst neutral.
-  const sLabelShared = 'px-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-shared-600'
-  // Eine Zeile Klartext je Abschnitt: sagt, wie weit die Einstellungen darunter
-  // reichen. Wichtiger als Farbe, weil eindeutig.
-  const sHint   = 'mb-2 mt-1 px-1 text-[12px] leading-snug text-zinc-400'
+  // Jeder Abschnitt traegt seine Farbe: Anthrazit (Theme) fuer das globale
+  // "Account", Lila fuer "Gemeinsam". Label UND ein dezenter Rahmen um die
+  // Karte — so gehoert sichtbar zusammen, was zusammengehoert.
+  const sLabelBase    = 'mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.07em]'
+  const sLabelAccount = `${sLabelBase} text-brand-600`
+  const sLabelShared  = `${sLabelBase} text-shared-600`
+
+  const cardBase    = 'overflow-hidden rounded-2xl bg-white shadow-card'
+  const cardAccount = `${cardBase} ring-1 ring-brand-600/25`
+  const cardShared  = `${cardBase} ring-1 ring-shared-600/30`
 
   // ── Views ────────────────────────────────────────────────────────────────────
 
@@ -231,9 +233,8 @@ export default function Settings() {
           Steht zuerst, weil es das ueberall Relevante ist. Alles in EINER
           Karte, damit die Zugehoerigkeit auf einen Blick klar ist. */}
       <div>
-        <p className={sLabel}>Account</p>
-        <p className={sHint}>Gilt überall — egal, in welchem Bereich du gerade bist.</p>
-        <div className={card}>
+        <p className={sLabelAccount}>Account</p>
+        <div className={cardAccount}>
           <button
             onClick={() => go('profile')}
             className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
@@ -273,11 +274,7 @@ export default function Settings() {
           Einkauf-Konfiguration, Partner, und ganz unten das Zuruecksetzen. */}
       <div>
         <p className={sLabelShared}>Gemeinsam</p>
-        <p className={sHint}>
-          Betrifft nur den geteilten Bereich — Einkaufsliste und gemeinsame Ausgaben. Caro sieht
-          diese Einstellungen ebenfalls.
-        </p>
-        <div className={card}>
+        <div className={cardShared}>
           {EINKAUF_ROWS.map(({ key, label, sg, pl }) => {
             const count = einkaufCounts[key as keyof typeof einkaufCounts]
             return (
@@ -336,10 +333,10 @@ export default function Settings() {
       {/* ── Persönlich ────────────────────────────────────────────────────────
           Platzhalter: Hier kommen spaeter die Einstellungen des privaten
           Bereichs hin (z. B. eigene Kategorien, Budget-Warnschwellen,
-          Kaskaden-Reihenfolge). Aufbau analog zu "Gemeinsam" oben: Label in
-          `text-personal-600`, darunter eine Zeile Klartext zum Geltungsbereich
-          ("Nur fuer dich sichtbar"), dann EINE Karte. Bewusst noch leer —
-          kommt mit den echten Persoenlich-Einstellungen in einer spaeteren Phase. */}
+          Kaskaden-Reihenfolge). Aufbau analog zu den beiden Abschnitten oben:
+          Label in `text-personal-600`, darunter EINE Karte mit
+          `ring-personal-600/30`. Bewusst noch leer — kommt mit den echten
+          Persoenlich-Einstellungen in einer spaeteren Phase. */}
     </div>
   )
 
