@@ -93,6 +93,7 @@ _Verify:_ Report-Zahlen stimmen mit Dashboard überein.
 **Querschnitt (durchgängig, nicht am Ende):**
 - **Sicherheit:** RLS strikt testen (privat = nur eigener `auth.uid()`), kein Secret im Frontend.
 - **Backup:** „Backup jetzt"-Funktion, die den kompletten Datenbestand als JSON/CSV exportiert; zusätzlich regelmäßiger Supabase-Export. Bei Geld nicht verhandelbar. **Repo ist öffentlich → Backups/Exporte nie in den Repo-Baum** (außerhalb ablegen; `docs/backups/` gitignored).
+- **Navigation/IA:** Einstellungen global erreichbar (Header oben, in beiden Welten — nicht als Tab; aktuell hängt sogar „Passwort ändern" in einem Gemeinsam-Tab). Klar unterscheidbare Tab-Titel/Icons je Welt, damit man Tabs nicht verwechselt — weder innerhalb einer Welt noch zwischen Gemeinsam/Persönlich. Wird ohnehin nötig, weil Phase 2+ mehr Persönlich-Tabs bringt (Budgets, Kaskade, Töpfe, Vermögen, Reports) und eine 1-/3-Tab-Leiste nicht auf 6+ skaliert. Am besten ein kurzer IA-Pass **vor** Phase 2, bevor weitere Tabs dazukommen.
 
 ## 5. Offene Entscheidungen (nicht blockierend, im Bau zu klären)
 

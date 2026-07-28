@@ -266,3 +266,51 @@ export function EmbraceIcon(p: IconProps) {
     </IconBase>
   )
 }
+
+// ── Tabs des Persönlich-Bereichs ────────────────────────────────────────────
+// Bewusst eigene Formen, die sich nicht mit den Gemeinsam-Icons (Korb, €)
+// überschneiden — damit auf einen Blick klar ist, in welcher Welt man ist.
+
+/** Übersicht: Balkendiagramm mit Achse. */
+export function ChartIcon(p: IconProps) {
+  return (
+    <IconBase {...p}>
+      <path d="M4.25 4.5v15h15.5" />
+      {/* Balken enden knapp über der Achse — mit runden Enden sitzen sie
+          dadurch optisch genau darauf, statt zu schweben. */}
+      <path d="M8.5 18.6V13.5" />
+      <path d="M12.5 18.6V9.5" />
+      <path d="M16.5 18.6V11.5" />
+    </IconBase>
+  )
+}
+
+/** Umsätze: Liste mit Auf-/Ab-Pfeilen (rein und raus). */
+export function TransactionsIcon(p: IconProps) {
+  return (
+    <IconBase {...p}>
+      {/* Pfeil hoch (Einnahme) */}
+      <path d="M5 10.5V5.25" />
+      <polyline points="3.2,7 5,5.25 6.8,7" />
+      {/* Pfeil runter (Ausgabe) */}
+      <path d="M5 13.5v5.25" />
+      <polyline points="3.2,17 5,18.75 6.8,17" />
+      {/* Zeilen */}
+      <path d="M10.5 7h9.5" />
+      <path d="M10.5 12h9.5" />
+      <path d="M10.5 17h9.5" />
+    </IconBase>
+  )
+}
+
+/** Konten: Geldbörse mit seitlichem Kartenfach.
+ *  Bewusst NICHT als schlichtes Rechteck — das wäre vom Geldschein-Icon
+ *  (MoneyFlyIcon, steckt in jeder Umsatzzeile) kaum zu unterscheiden. */
+export function WalletIcon(p: IconProps) {
+  return (
+    <IconBase {...p}>
+      <path d="M19.5 9V7a2 2 0 0 0-2-2H5.75A1.75 1.75 0 0 0 4 6.75v10.5A2.75 2.75 0 0 0 6.75 20H17.5a2 2 0 0 0 2-2v-2" />
+      <path d="M20.75 11h-3.5a1.75 1.75 0 0 0 0 3.5h3.5a.75.75 0 0 0 .75-.75v-2a.75.75 0 0 0-.75-.75Z" />
+    </IconBase>
+  )
+}

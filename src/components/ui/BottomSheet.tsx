@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { createPortal } from 'react-dom'
+import { motion, type PanInfo, AnimatePresence } from 'framer-motion'
 
 interface BottomSheetProps {
   open:       boolean
@@ -7,6 +8,12 @@ interface BottomSheetProps {
   children:   ReactNode
   maxHeight?: string
   paddingBottom?: string
+  /**
+   * Ziehen zum Schliessen. Standard true (Verhalten aller bestehenden Sheets).
+   * Bei langen, scrollbaren Inhalten — etwa den Einstellungen — auf false
+   * setzen: sonst konkurriert die Zieh-Geste mit dem Scrollen.
+   */
+  draggable?: boolean
 }
 
 export default function BottomSheet({
@@ -15,8 +22,14 @@ export default function BottomSheet({
   children,
   maxHeight     = 'calc(100dvh - 56px)',
   paddingBottom = 'calc(env(safe-area-inset-bottom) + 64px)',
+  draggable     = true,
 }: BottomSheetProps) {
-  return (
+  // Direkt an <body> haengen. Grund: Das Panel wird per framer-motion
+  // transformiert, und ein transformierter Vorfahre wird zum Bezugsrahmen fuer
+  // `position: fixed`-Kinder. Ohne Portal waeren verschachtelte Overlays (etwa
+  // das Passwort-Sheet in den Einstellungen) samt Abdunklung auf die Breite des
+  // aeusseren Sheets begrenzt statt auf den ganzen Bildschirm.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
@@ -34,12 +47,16 @@ export default function BottomSheet({
             animate={{ y: 0 }}
             exit={{ y: '110%' }}
             transition={{ type: 'spring', stiffness: 420, damping: 38 }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.45 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 90 || info.velocity.y > 600) onClose()
-            }}
+            {...(draggable
+              ? {
+                  drag: 'y' as const,
+                  dragConstraints: { top: 0, bottom: 0 },
+                  dragElastic: { top: 0, bottom: 0.45 },
+                  onDragEnd: (_: unknown, info: PanInfo) => {
+                    if (info.offset.y > 90 || info.velocity.y > 600) onClose()
+                  },
+                }
+              : {})}
             data-no-swipe
             className="fixed inset-x-0 bottom-0 z-[40] mx-auto max-w-2xl overflow-y-auto rounded-t-3xl bg-white"
             style={{
@@ -49,12 +66,18 @@ export default function BottomSheet({
             }}
           >
             <div className="flex justify-center pt-3 pb-1">
-              <div className="h-1.5 w-10 cursor-grab rounded-full bg-zinc-200 active:cursor-grabbing" />
+              <div
+                className={
+                  'h-1.5 w-10 rounded-full bg-zinc-200 ' +
+                  (draggable ? 'cursor-grab active:cursor-grabbing' : '')
+                }
+              />
             </div>
             {children}
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
