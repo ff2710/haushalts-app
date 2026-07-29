@@ -51,6 +51,24 @@ export const PF_DEFAULT_CATEGORIES = [
   { name: 'Sonstiges',           type: 'expense', color: '#64748b' },
 ] as const
 
+/** Auswahlfarben fuer HAUPTkategorien. Unterkategorien bekommen keine eigene
+ *  Farbe, sondern eine Abstufung der Elternfarbe (src/lib/categoryColors.ts) —
+ *  sonst waere im Sankey nicht mehr zu sehen, was zu wem gehoert.
+ *  Gut unterscheidbare Farbtoene, bewusst in gleicher Helligkeit gehalten,
+ *  damit die abgeleiteten Stufen darueber noch Luft nach oben haben. */
+export const PF_CATEGORY_COLORS = [
+  '#ef4444', // Rot
+  '#f97316', // Orange
+  '#eab308', // Gelb
+  '#16a34a', // Grün
+  '#0ea5e9', // Hellblau
+  '#3b82f6', // Blau
+  '#8b5cf6', // Violett
+  '#ec4899', // Pink
+  '#14b8a6', // Türkis
+  '#64748b', // Grau
+] as const
+
 export const STORAGE_BUCKET = {
   AVATARS: 'avatars',
 } as const

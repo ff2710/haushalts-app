@@ -38,6 +38,22 @@ import type {
 
 const dbErr = (msg: string) => toastEmitter.emit(msg)
 
+/**
+ * Die Kategorie-Regeln stehen in der Datenbank (Unique-Index + Trigger, siehe
+ * supabase/schema-personal.sql). Deren Meldungen sind fuer Entwickler
+ * geschrieben — hier werden die Codes in Saetze uebersetzt, die auch etwas
+ * sagen, wenn man das Schema nicht kennt.
+ */
+const categoryErr = (code: string | undefined, fallback: string) => {
+  if (code === '23505')
+    dbErr('Diesen Namen gibt es an derselben Stelle schon.')
+  else if (code === '23514')
+    dbErr('Das erlaubt die Struktur nicht: höchstens zwei Ebenen, und Unter- und Hauptkategorie müssen dieselbe Art haben.')
+  else if (code === '23503')
+    dbErr('Die gewählte Hauptkategorie gibt es nicht mehr.')
+  else dbErr(fallback)
+}
+
 /** Laufender Monat als 'YYYY-MM' in lokaler Zeit. */
 const currentMonth = (): string => todayISO().slice(0, 7)
 
@@ -59,8 +75,10 @@ interface PersonalContextValue {
   deleteAccount: (id: string) => Promise<void>
 
   addCategory:    (data: PfCategoryInput) => Promise<PfCategory | null>
-  updateCategory: (id: string, data: Partial<PfCategoryInput>) => Promise<void>
-  deleteCategory: (id: string) => Promise<void>
+  /** true = gespeichert. Bei false steht der Grund schon als Hinweis auf dem
+   *  Schirm; der Editor bleibt dann offen, damit nichts verloren geht. */
+  updateCategory: (id: string, data: Partial<PfCategoryInput>) => Promise<boolean>
+  deleteCategory: (id: string) => Promise<boolean>
 
   addTransaction:    (data: PfTransactionInput) => Promise<PfTransaction | null>
   updateTransaction: (id: string, data: Partial<PfTransactionInput>) => Promise<void>
@@ -278,7 +296,7 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
   const addCategory = useCallback(async (data: PfCategoryInput) => {
     const { data: row, error } = await personalService.addCategory(data)
     if (error) {
-      dbErr('Kategorie konnte nicht angelegt werden.')
+      categoryErr(error.code, 'Kategorie konnte nicht angelegt werden.')
       return null
     }
     setCategories((a) => upsert(a, row as PfCategory).sort(byName))
@@ -287,13 +305,32 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
 
   const updateCategory = useCallback(async (id: string, data: Partial<PfCategoryInput>) => {
     const { error } = await personalService.updateCategory(id, data)
-    if (error) dbErr('Kategorie konnte nicht geändert werden.')
+    if (error) {
+      categoryErr(error.code, 'Kategorie konnte nicht geändert werden.')
+      return false
+    }
+    // Lokal nachziehen statt auf Realtime zu warten — sonst steht im Editor
+    // nach dem Speichern kurz noch der alte Name.
+    setCategories((a) => a.map((c) => (c.id === id ? { ...c, ...data } : c)).sort(byName))
+    return true
   }, [])
 
   const deleteCategory = useCallback(async (id: string) => {
     const { error } = await personalService.deleteCategory(id)
-    if (error) dbErr('Kategorie konnte nicht gelöscht werden.')
-    else setCategories((a) => removeById(a, id))
+    if (error) {
+      // Beim Loeschen bedeutet 23505 etwas Eigenes: eine Unterkategorie wird
+      // dabei zur Hauptkategorie und stiesse dort auf einen belegten Namen.
+      if (error.code === '23505')
+        dbErr('Löschen nicht möglich: eine Unterkategorie würde dabei zur Hauptkategorie, und den Namen gibt es dort schon. Benenne sie zuerst um.')
+      else categoryErr(error.code, 'Kategorie konnte nicht gelöscht werden.')
+      return false
+    }
+    setCategories((a) =>
+      // Die Kinder der geloeschten Kategorie ruecken per "on delete set null"
+      // eine Ebene hoch; lokal genauso nachziehen.
+      removeById(a, id).map((c) => (c.parent_id === id ? { ...c, parent_id: null } : c)),
+    )
+    return true
   }, [])
 
   const addTransaction = useCallback(async (data: PfTransactionInput) => {

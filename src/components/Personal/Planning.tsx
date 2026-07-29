@@ -5,11 +5,20 @@ import { ChevronRightIcon, PlusIcon } from '../ui/Icon'
 import { formatMoney, todayISO } from '../../lib/utils'
 import { monthlyContribution, recurringAmountForMonth } from '../../lib/forecast'
 import { budgetStatus } from '../../lib/budget'
+import { categoryColorMap } from '../../lib/categoryColors'
+import { orderedCategories } from '../../lib/categoryTree'
 import FixedCostSheet, { CADENCES } from './FixedCostSheet'
 import IncomeSheet from './IncomeSheet'
 import EstimateSheet from './EstimateSheet'
 import BudgetSheet from './BudgetSheet'
-import type { PfCategory, PfFixedCost, PfRecurringIncome, PfVariableEstimate } from '../../types'
+import CategorySheet from './CategorySheet'
+import type {
+  PfCategory,
+  PfCategoryType,
+  PfFixedCost,
+  PfRecurringIncome,
+  PfVariableEstimate,
+} from '../../types'
 
 const cadenceLabel = (c: string) => CADENCES.find((x) => x.id === c)?.label ?? c
 
@@ -31,8 +40,23 @@ export default function Planning() {
   const [estEdit, setEstEdit] = useState<PfVariableEstimate | null>(null)
   const [budgetOpen, setBudgetOpen] = useState(false)
   const [budgetCat, setBudgetCat] = useState<PfCategory | null>(null)
+  const [catOpen, setCatOpen] = useState(false)
+  const [catEdit, setCatEdit] = useState<PfCategory | null>(null)
+  const [catType, setCatType] = useState<PfCategoryType>('expense')
+  const [catParent, setCatParent] = useState<string | null>(null)
 
   const month = todayISO().slice(0, 7)
+
+  // Eine Farbquelle fuer alles: Unterkategorien tragen die abgeleitete Stufe
+  // ihrer Hauptkategorie, nicht die roh gespeicherte Farbe.
+  const colors = useMemo(() => categoryColorMap(categories), [categories])
+
+  const openCategory = (cat: PfCategory | null, type: PfCategoryType, parentId: string | null) => {
+    setCatEdit(cat)
+    setCatType(type)
+    setCatParent(parentId)
+    setCatOpen(true)
+  }
 
   // Ausgaben des laufenden Monats je Kategorie — Grundlage der Budget-Anzeige.
   const spentByCategory = useMemo(() => {
@@ -44,7 +68,12 @@ export default function Planning() {
     return m
   }, [monthTransactions])
 
-  const budgetCats = categories.filter((c) => c.type === 'expense')
+  // Budgets: dieselbe Reihenfolge wie in der Kategorienliste, damit man nicht
+  // zwei verschieden sortierte Listen derselben Sache vor sich hat.
+  const budgetRows = useMemo(
+    () => orderedCategories(categories.filter((c) => c.type === 'expense')),
+    [categories],
+  )
 
   if (loading) {
     return (
@@ -209,13 +238,81 @@ export default function Planning() {
         })}
       </section>
 
+      {/* ── Kategorien ────────────────────────────────────────────────────── */}
+      {/* Erst hier entsteht die Struktur, auf der Budgets und die Analyse-
+          Ansicht aufsetzen: Hauptkategorien mit je einer Ebene Unterkategorien. */}
+      {(['expense', 'income'] as PfCategoryType[]).map((t) => {
+        const rows = orderedCategories(categories.filter((c) => c.type === t))
+        return (
+          <section key={t}>
+            <p className={sLabel}>{t === 'expense' ? 'Ausgaben-Kategorien' : 'Einnahme-Kategorien'}</p>
+            <div className={card}>
+              {rows.length === 0
+                ? emptyRow('Noch keine Kategorien')
+                : rows.map(({ category: c, depth, children }, i) => (
+                    <div key={c.id}>
+                      {i > 0 && sep}
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => openCategory(c, t, c.parent_id)}
+                          className={`${rowCls} min-w-0 flex-1 transition-colors duration-100 active:bg-zinc-50`}
+                          style={depth === 1 ? { paddingLeft: 34 } : undefined}
+                        >
+                          <span className="flex min-w-0 items-center gap-2.5">
+                            <span
+                              className="h-3 w-3 shrink-0 rounded-full ring-1 ring-black/10"
+                              style={{ backgroundColor: colors.get(c.id) ?? c.color }}
+                            />
+                            <span className="min-w-0">
+                              <span
+                                className={
+                                  'block truncate ' +
+                                  (depth === 1
+                                    ? 'text-[14px] text-zinc-600'
+                                    : 'text-[15px] font-medium text-zinc-900')
+                                }
+                              >
+                                {c.name}
+                              </span>
+                              {depth === 0 && children.length > 0 && (
+                                <span className="mt-0.5 block text-[12px] text-zinc-400">
+                                  {children.length}{' '}
+                                  {children.length === 1 ? 'Unterkategorie' : 'Unterkategorien'}
+                                </span>
+                              )}
+                            </span>
+                          </span>
+                          <ChevronRightIcon size={14} strokeWidth={2.5} className="shrink-0 text-zinc-300" />
+                        </button>
+                        {/* Nur an Hauptkategorien: eine Ebene tiefer geht nicht. */}
+                        {depth === 0 && (
+                          <button
+                            onClick={() => openCategory(null, t, c.id)}
+                            aria-label={`Unterkategorie unter ${c.name} anlegen`}
+                            className="mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors duration-150 active:bg-black/[0.06]"
+                          >
+                            <PlusIcon size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+            </div>
+            {addButton(
+              t === 'expense' ? 'Ausgaben-Kategorie hinzufügen' : 'Einnahme-Kategorie hinzufügen',
+              () => openCategory(null, t, null),
+            )}
+          </section>
+        )
+      })}
+
       {/* ── Budgets ───────────────────────────────────────────────────────── */}
       <section>
         <p className={sLabel}>Budgets je Kategorie</p>
         <div className={card}>
-          {budgetCats.length === 0
+          {budgetRows.length === 0
             ? emptyRow('Keine Ausgaben-Kategorien vorhanden')
-            : budgetCats.map((c, i) => {
+            : budgetRows.map(({ category: c, depth }, i) => {
                 const budget = c.monthly_budget == null ? null : Number(c.monthly_budget)
                 const spent = spentByCategory.get(c.id) ?? 0
                 const { level, ratio, overBy } = budgetStatus(spent, budget, Number(c.warn_ratio))
@@ -230,9 +327,17 @@ export default function Planning() {
                         setBudgetOpen(true)
                       }}
                       className={`${rowCls} transition-colors duration-100 active:bg-zinc-50`}
+                      style={depth === 1 ? { paddingLeft: 34 } : undefined}
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[15px] font-medium text-zinc-900">
+                        <span
+                          className={
+                            'block truncate ' +
+                            (depth === 1
+                              ? 'text-[14px] text-zinc-600'
+                              : 'text-[15px] font-medium text-zinc-900')
+                          }
+                        >
                           {c.name}
                         </span>
                         {level === 'none' ? (
@@ -278,6 +383,13 @@ export default function Planning() {
       <IncomeSheet open={incomeOpen} onClose={() => setIncomeOpen(false)} income={incomeEdit} />
       <EstimateSheet open={estOpen} onClose={() => setEstOpen(false)} estimate={estEdit} />
       <BudgetSheet open={budgetOpen} onClose={() => setBudgetOpen(false)} category={budgetCat} />
+      <CategorySheet
+        open={catOpen}
+        onClose={() => setCatOpen(false)}
+        category={catEdit}
+        defaultType={catType}
+        defaultParentId={catParent}
+      />
     </div>
   )
 }
