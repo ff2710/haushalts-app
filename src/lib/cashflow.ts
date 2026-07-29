@@ -47,6 +47,22 @@ export interface Cashflow {
   saldo: number
   /** Ausgaben ohne Kategorie — im Fluss als eigener Knoten, hier nochmal fuer Hinweise. */
   uncategorizedExpense: number
+
+  /**
+   * Was in Kategorien des Topfes "sparen" geflossen ist — gezielt angelegtes
+   * Geld also, das als Ausgabe gebucht ist (ETF-Sparplan, Ruecklage).
+   */
+  savedDeliberate: number
+  /**
+   * Gespart insgesamt: was gezielt angelegt wurde PLUS was am Ende uebrig
+   * blieb. Beides hat den Monat ueberlebt, und beides erhoeht das Vermoegen —
+   * nur der Weg dahin ist verschieden.
+   *
+   * Kann negativ sein: wer mehr ausgibt als einnimmt, hat entspart.
+   */
+  saved: number
+  /** saved / Einnahmen. 0, wenn es keine Einnahmen gab. */
+  savingsRate: number
 }
 
 /** Minimalform einer Buchung — nur, was der Fluss braucht. */
@@ -63,11 +79,17 @@ export interface FlowCategory {
   type: 'income' | 'expense'
   color: string
   parent_id: string | null
+  /** Planungs-Topf der Hauptkategorie; Unterkategorien erben ihn. */
+  planning_bucket?: 'fix' | 'freizeit' | 'sparen' | null
 }
 
+// Als Konstanten exportiert, nicht als Literale verstreut: bookingsForNode
+// muss dieselben Knoten erkennen, die buildCashflow gebaut hat. Zwei Stellen
+// mit demselben getippten String waeren eine stille Bruchstelle.
 export const BUDGET_ID = 'budget'
-const NO_CATEGORY_INCOME = 'income:none'
-const NO_CATEGORY_EXPENSE = 'expense:none'
+export const SURPLUS_ID = 'surplus'
+export const NO_CATEGORY_INCOME = 'income:none'
+export const NO_CATEGORY_EXPENSE = 'expense:none'
 const NEUTRAL = '#94a3b8'
 
 /** Rest-Knoten einer Hauptkategorie, auf die auch direkt gebucht wurde. */
@@ -95,6 +117,7 @@ export function buildCashflow(
   let income = 0
   let expense = 0
   let uncategorizedExpense = 0
+  let savedDeliberate = 0
 
   // Summen je Knoten
   const incomeByCat = new Map<string, number>()
@@ -128,6 +151,8 @@ export function buildCashflow(
       continue
     }
     const main = cat.parent_id ? (byId.get(cat.parent_id) ?? cat) : cat
+    // Der Topf haengt an der Hauptkategorie; eine Unterkategorie erbt ihn.
+    if (main.planning_bucket === 'sparen') savedDeliberate += amount
     expenseByMain.set(main.id, (expenseByMain.get(main.id) ?? 0) + amount)
     if (cat.parent_id && byId.has(cat.parent_id)) {
       expenseBySub.set(cat.id, (expenseBySub.get(cat.id) ?? 0) + amount)
@@ -260,7 +285,7 @@ export function buildCashflow(
 
   if (surplus > 0) {
     nodes.push({
-      id: 'surplus',
+      id: SURPLUS_ID,
       name: 'Übrig geblieben',
       value: surplus,
       color: '#16a34a',
@@ -268,7 +293,7 @@ export function buildCashflow(
       categoryId: null,
       depth: 2,
     })
-    links.push({ source: BUDGET_ID, target: 'surplus', value: surplus })
+    links.push({ source: BUDGET_ID, target: SURPLUS_ID, value: surplus })
   }
 
   return {
@@ -278,6 +303,9 @@ export function buildCashflow(
     expense: round2(expense),
     saldo: round2(income - expense),
     uncategorizedExpense: round2(uncategorizedExpense),
+    savedDeliberate: round2(savedDeliberate),
+    saved: round2(income - expense + savedDeliberate),
+    savingsRate: income > 0 ? (income - expense + savedDeliberate) / income : 0,
   }
 }
 
@@ -311,11 +339,18 @@ export function bookingsForNode<T extends FlowTransaction>(
 ): T[] {
   if (node.id === BUDGET_ID) return transactions.filter((t) => t.type === 'expense')
   // Der Ueberschuss ist eine Rechengroesse, keine Buchung.
-  if (node.id === 'surplus') return []
+  if (node.id === SURPLUS_ID) return []
+
+  // "Ohne Kategorie" heisst hier dasselbe wie in buildCashflow: entweder gar
+  // keine Kategorie, ODER eine, die es nicht mehr gibt. Nur auf null zu pruefen
+  // waere enger als das Summieren — nach dem Loeschen einer Kategorie zeigte
+  // das Buchungsblatt dann weniger Zeilen, als der Knoten verspricht.
+  const known = new Set(categories.map((c) => c.id))
+  const orphan = (t: FlowTransaction) => !t.category_id || !known.has(t.category_id)
   if (node.id === NO_CATEGORY_INCOME)
-    return transactions.filter((t) => t.type === 'income' && !t.category_id)
+    return transactions.filter((t) => t.type === 'income' && orphan(t))
   if (node.id === NO_CATEGORY_EXPENSE)
-    return transactions.filter((t) => t.type === 'expense' && !t.category_id)
+    return transactions.filter((t) => t.type === 'expense' && orphan(t))
 
   if (!node.categoryId) return []
 
@@ -330,6 +365,7 @@ export function bookingsForNode<T extends FlowTransaction>(
   const own = new Set<string>([node.categoryId])
   for (const c of categories) if (c.parent_id === node.categoryId) own.add(c.id)
   const wanted = node.kind === 'income' ? 'income' : 'expense'
+
   return transactions.filter(
     (t) => t.type === wanted && t.category_id !== null && own.has(t.category_id),
   )

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { layoutSankey } from '../../lib/sankeyLayout'
 import { formatMoney } from '../../lib/utils'
-import type { Cashflow, FlowNode } from '../../lib/cashflow'
+import { SURPLUS_ID, type Cashflow, type FlowNode } from '../../lib/cashflow'
 
 interface Props {
   flow: Cashflow
@@ -50,7 +50,10 @@ export default function SankeyChart({ flow, totals, mode, onSelect }: Props) {
     const perColumn = new Map<number, number>()
     for (const n of flow.nodes) perColumn.set(n.depth, (perColumn.get(n.depth) ?? 0) + 1)
     const max = Math.max(1, ...perColumn.values())
-    return Math.min(680, Math.max(260, max * 42))
+    // Waechst mit der Zahl der Knoten statt bei einem festen Deckel
+    // abzuschneiden — die Seite scrollt ohnehin, und ein gedeckeltes Diagramm
+    // mit sechzig Kategorien waere ein Strichmuster.
+    return Math.max(260, max * 42)
   }, [flow])
 
   const layout = useMemo(
@@ -98,8 +101,8 @@ export default function SankeyChart({ flow, totals, mode, onSelect }: Props) {
       {width > 0 && layout.nodes.length > 0 && (
         <svg
           width="100%"
-          height={height}
-          viewBox={`0 0 ${width} ${height}`}
+          height={layout.height}
+          viewBox={`0 0 ${width} ${layout.height}`}
           className="block touch-manipulation"
           onPointerLeave={() => setFocus(null)}
         >
@@ -128,6 +131,12 @@ export default function SankeyChart({ flow, totals, mode, onSelect }: Props) {
           <g>
             {layout.nodes.map((n) => {
               const on = highlighted?.nodes.has(n.id) ?? true
+              // Budget und "Uebrig geblieben" sind Rechengroessen: hinter dem
+              // einen liegt der gesamte Monat, hinter dem anderen ueberhaupt
+              // keine Buchung. Ein Buchungsblatt dazu koennte nur eine Summe
+              // zeigen, die nicht zum Knoten passt — also gar nicht erst
+              // anbieten.
+              const selectable = n.kind !== 'budget' && n.id !== SURPLUS_ID
               return (
                 <rect
                   key={n.id}
@@ -138,9 +147,11 @@ export default function SankeyChart({ flow, totals, mode, onSelect }: Props) {
                   rx={2}
                   fill={n.color}
                   opacity={dim(on)}
-                  className="cursor-pointer transition-opacity duration-150"
+                  className={
+                    'transition-opacity duration-150 ' + (selectable ? 'cursor-pointer' : '')
+                  }
                   onPointerEnter={() => setFocus(n.id)}
-                  onClick={() => onSelect(n)}
+                  onClick={selectable ? () => onSelect(n) : undefined}
                 />
               )
             })}

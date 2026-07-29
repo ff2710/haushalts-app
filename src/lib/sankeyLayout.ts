@@ -34,7 +34,16 @@ export interface LayoutLink extends FlowLink {
 export interface SankeyLayout {
   nodes: LayoutNode[]
   links: LayoutLink[]
-  /** Tatsaechlich benoetigte Hoehe (<= der vorgegebenen). */
+  /**
+   * Tatsaechlich benoetigte Hoehe — und der Wert, mit dem gezeichnet werden
+   * MUSS, nicht die vorgegebene.
+   *
+   * Sie kann die Vorgabe leicht ueberschreiten: Knoten unterhalb von
+   * minNodeHeight werden angehoben, damit Winzigposten nicht verschwinden, und
+   * diese Anhebung passt naturgemaess nicht mehr in den urspruenglichen
+   * Massstab. Wer mit der Vorgabe zeichnet statt mit diesem Wert, schneidet
+   * die letzten Knoten ab.
+   */
   height: number
 }
 
@@ -70,6 +79,18 @@ export function layoutSankey(flow: Cashflow, opts: SankeyOptions): SankeyLayout 
   const columns: FlowNode[][] = depths.map(() => [])
   for (const n of flow.nodes) columns[columnOf.get(n.depth) as number].push(n)
 
+  // Der Abstand zwischen Knoten schrumpft mit, wenn eine Spalte sehr viele
+  // Knoten hat. Ohne das koennten die Abstaende allein hoeher werden als das
+  // Diagramm: die verbleibende Hoehe fuer die Knoten waere negativ, der
+  // Massstab damit negativ, und der Leerfall-Guard weiter unten wuerde
+  // faelschlich greifen — das Diagramm verschwaende kommentarlos, obwohl
+  // Daten da sind. Deshalb bleibt mindestens die halbe Hoehe fuer Knoten.
+  let padding = nodePadding
+  for (const col of columns) {
+    if (col.length < 2) continue
+    padding = Math.min(padding, (opts.height * 0.5) / (col.length - 1))
+  }
+
   // Ein gemeinsamer Massstab fuer alle Spalten — sonst waere ein Euro links
   // laenger als rechts und das Bild vergleicht Aepfel mit Birnen. Es gewinnt
   // die Spalte, die am wenigsten Platz uebrig hat.
@@ -77,7 +98,7 @@ export function layoutSankey(flow: Cashflow, opts: SankeyOptions): SankeyLayout 
   for (const col of columns) {
     const total = col.reduce((s, n) => s + n.value, 0)
     if (total <= 0) continue
-    const free = opts.height - (col.length - 1) * nodePadding
+    const free = opts.height - (col.length - 1) * padding
     scale = Math.min(scale, free / total)
   }
   if (!Number.isFinite(scale) || scale <= 0) return { nodes: [], links: [], height: 0 }
@@ -91,7 +112,7 @@ export function layoutSankey(flow: Cashflow, opts: SankeyOptions): SankeyLayout 
 
   columns.forEach((col, i) => {
     const heights = col.map((n) => Math.max(minNodeHeight, n.value * scale))
-    const colHeight = heights.reduce((s, h) => s + h, 0) + (col.length - 1) * nodePadding
+    const colHeight = heights.reduce((s, h) => s + h, 0) + (col.length - 1) * padding
     // Spalten mittig — bei sehr unterschiedlichen Knotenzahlen laufen die
     // Baender sonst alle schraeg nach oben.
     let y = Math.max(0, (opts.height - colHeight) / 2)
@@ -108,7 +129,7 @@ export function layoutSankey(flow: Cashflow, opts: SankeyOptions): SankeyLayout 
       }
       nodes.push(node)
       byId.set(node.id, node)
-      y = node.y1 + nodePadding
+      y = node.y1 + padding
     })
   })
 

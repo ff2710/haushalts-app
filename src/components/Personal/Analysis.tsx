@@ -15,6 +15,7 @@ import {
   type PeriodKind,
 } from '../../lib/period'
 import {
+  SURPLUS_ID,
   bookingsForNode,
   buildCashflow,
   type Cashflow,
@@ -163,7 +164,7 @@ export default function Analysis() {
         ? flow.nodes.filter((n) => n.depth === 0)
         : side === 'sub'
           ? flow.nodes.filter((n) => n.depth === 3)
-          : flow.nodes.filter((n) => n.depth === 2 && n.id !== 'surplus')
+          : flow.nodes.filter((n) => n.depth === 2 && n.id !== SURPLUS_ID)
     return pick.map((n) => ({
       id: n.id,
       name: n.name,
