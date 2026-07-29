@@ -5,8 +5,16 @@ import type { Cashflow, FlowNode } from '../../lib/cashflow'
 
 interface Props {
   flow: Cashflow
-  /** Bezugswert der Prozentansicht (der Budget-Knoten). */
-  total: number
+  /**
+   * Bezugswerte der Prozentansicht, getrennt nach Seite.
+   *
+   * Ein Ausgabenposten wird an den Ausgaben gemessen, ein Einnahmeposten an
+   * den Einnahmen. Beides gegen einen gemeinsamen Nenner zu rechnen klingt
+   * einheitlicher, waere aber falsch: der Donut darunter zeigt Anteile an den
+   * Ausgaben, und dieselbe Kategorie stuende dann mit zwei verschiedenen
+   * Prozentzahlen auf einem Bildschirm.
+   */
+  totals: { income: number; expense: number }
   mode: 'eur' | 'pct'
   /** Wird beim Antippen eines Knotens gerufen. */
   onSelect: (node: FlowNode) => void
@@ -20,7 +28,7 @@ const LABEL_MIN_HEIGHT = 9
 const NODE_WIDTH = 9
 const NODE_PADDING = 9
 
-export default function SankeyChart({ flow, total, mode, onSelect }: Props) {
+export default function SankeyChart({ flow, totals, mode, onSelect }: Props) {
   const wrap = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
   const [focus, setFocus] = useState<string | null>(null)
@@ -71,12 +79,17 @@ export default function SankeyChart({ flow, total, mode, onSelect }: Props) {
     return { nodes, links }
   }, [focus, flow])
 
-  const label = (value: number) =>
-    mode === 'pct'
-      ? total > 0
-        ? `${((value / total) * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`
-        : '–'
-      : formatMoney(value)
+  // "Uebrig geblieben" ist kein Ausgabenposten, sondern der Teil der Einnahmen,
+  // der liegen blieb — und wird deshalb an den Einnahmen gemessen.
+  const referenceFor = (n: FlowNode) =>
+    n.kind === 'income' || n.id === 'surplus' ? totals.income : totals.expense
+
+  const label = (n: FlowNode) => {
+    if (mode === 'eur') return formatMoney(n.value)
+    const ref = referenceFor(n)
+    if (ref <= 0) return '–'
+    return `${((n.value / ref) * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`
+  }
 
   const dim = (on: boolean) => (highlighted && !on ? 0.16 : 1)
 
@@ -169,7 +182,7 @@ export default function SankeyChart({ flow, total, mode, onSelect }: Props) {
                   paintOrder="stroke"
                 >
                   {n.name}
-                  <tspan className="fill-zinc-400"> {label(n.value)}</tspan>
+                  <tspan className="fill-zinc-400"> {label(n)}</tspan>
                 </text>
               )
             })}

@@ -14,8 +14,19 @@ export interface DonutSlice {
 
 interface Props {
   slices: DonutSlice[]
+  /**
+   * Bezugswert fuer Ring und Prozente — nicht zwingend die Summe der Segmente.
+   *
+   * Bei den Unterkategorien decken die gezeigten Posten nur einen Teil der
+   * Ausgaben ab; sie trotzdem an den Gesamtausgaben zu messen ist der Punkt,
+   * denn nur so nennt der Donut dieselbe Prozentzahl wie der Sankey darueber.
+   * Der Ring bleibt dann bewusst unvollstaendig — das ist die ehrliche
+   * Darstellung, nicht ein Fehler.
+   */
   total: number
   mode: 'eur' | 'pct'
+  /** Zahl in der Mitte; ohne Angabe der Bezugswert. */
+  centerValue?: number
   centerLabel: string
   onSelect: (slice: DonutSlice) => void
 }
@@ -33,7 +44,14 @@ const GAP = 1.5
  * sondern hat auch den Kantenfall "ein einziges Segment ueber 100 %" gratis —
  * als Bogen waere der entartet (Anfang gleich Ende) und wuerde verschwinden.
  */
-export default function DonutChart({ slices, total, mode, centerLabel, onSelect }: Props) {
+export default function DonutChart({
+  slices,
+  total,
+  mode,
+  centerValue,
+  centerLabel,
+  onSelect,
+}: Props) {
   const value = (v: number) =>
     mode === 'pct'
       ? total > 0
@@ -87,7 +105,7 @@ export default function DonutChart({ slices, total, mode, centerLabel, onSelect 
             fontWeight={600}
             className="fill-zinc-900"
           >
-            {formatMoney(total)}
+            {formatMoney(centerValue ?? total)}
           </text>
           <text
             x={SIZE / 2}

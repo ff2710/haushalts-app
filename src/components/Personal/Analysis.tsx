@@ -14,7 +14,12 @@ import {
   type Period,
   type PeriodKind,
 } from '../../lib/period'
-import { BUDGET_ID, buildCashflow, type Cashflow, type FlowNode } from '../../lib/cashflow'
+import {
+  bookingsForNode,
+  buildCashflow,
+  type Cashflow,
+  type FlowNode,
+} from '../../lib/cashflow'
 import SankeyChart from './SankeyChart'
 import DonutChart, { type DonutSlice } from './DonutChart'
 import BookingsSheet from './BookingsSheet'
@@ -92,7 +97,6 @@ export default function Analysis() {
   )
 
   const flow = useMemo(() => buildCashflow(periodRows, categories), [periodRows, categories])
-  const budget = flow.nodes.find((n) => n.id === BUDGET_ID)?.value ?? 0
 
   const history = useMemo(
     () =>
@@ -136,27 +140,11 @@ export default function Analysis() {
     }
   }, [flow, drill, isWide])
 
-  /** Buchungen hinter einem Knoten — dieselbe Zuordnung fuer Anzahl und Liste. */
-  const bookingsFor = (node: FlowNode): PfTransaction[] => {
-    if (node.id === BUDGET_ID) return periodRows
-    if (node.id === 'surplus') return []
-    if (node.id === 'income:none')
-      return periodRows.filter((t) => t.type === 'income' && !t.category_id)
-    if (node.id === 'expense:none')
-      return periodRows.filter((t) => t.type === 'expense' && !t.category_id)
-
-    // Rest-Knoten: genau das, was direkt auf der Hauptkategorie gebucht wurde.
-    if (node.id.startsWith('direct:'))
-      return periodRows.filter((t) => t.category_id === node.categoryId)
-
-    if (!node.categoryId) return []
-    if (node.kind === 'subcategory') return periodRows.filter((t) => t.category_id === node.categoryId)
-
-    // Hauptkategorie: sie selbst und alles darunter.
-    const own = new Set<string>([node.categoryId])
-    for (const c of categories) if (c.parent_id === node.categoryId) own.add(c.id)
-    return periodRows.filter((t) => t.category_id && own.has(t.category_id))
-  }
+  // Die Zuordnung "welche Buchung steckt in diesem Knoten" liegt bewusst in
+  // lib/cashflow.ts direkt neben dem Summieren — zweimal formuliert koennten
+  // die beiden auseinanderlaufen, und dann zeigte das Buchungsblatt andere
+  // Zahlen als die Kante, aus der es geoeffnet wurde.
+  const bookingsFor = (node: FlowNode) => bookingsForNode(node, periodRows, categories)
 
   const onSelect = (node: FlowNode) => {
     // Auf schmalen Screens fuehrt das Antippen einer Hauptkategorie mit
@@ -187,7 +175,11 @@ export default function Analysis() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flow, side, periodRows, categories])
 
-  const donutTotal = slices.reduce((s, x) => s + x.value, 0)
+  const sliceSum = slices.reduce((s, x) => s + x.value, 0)
+  // Bezugswert des Donuts ist die Summe der Seite, nicht die der gezeigten
+  // Segmente — sonst naennte er fuer eine Unterkategorie eine andere
+  // Prozentzahl als der Sankey direkt darueber.
+  const donutTotal = side === 'income' ? flow.income : flow.expense
 
   const drillNode = drill ? flow.nodes.find((n) => n.id === `cat:${drill}`) : null
 
@@ -360,7 +352,12 @@ export default function Analysis() {
         ) : (
           <>
             <div className="mt-2">
-              <SankeyChart flow={visible} total={budget} mode={mode} onSelect={onSelect} />
+              <SankeyChart
+                flow={visible}
+                totals={{ income: flow.income, expense: flow.expense }}
+                mode={mode}
+                onSelect={onSelect}
+              />
             </div>
             {!isWide && !drill && flow.nodes.some((n) => n.depth === 3) && (
               <p className="mt-1 text-center text-[11px] text-zinc-400">
@@ -400,6 +397,7 @@ export default function Analysis() {
           <DonutChart
             slices={slices}
             total={donutTotal}
+            centerValue={sliceSum}
             mode={mode}
             centerLabel={
               side === 'income' ? 'Einnahmen' : side === 'sub' ? 'Unterkategorien' : 'Ausgaben'

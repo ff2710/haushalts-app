@@ -285,3 +285,52 @@ export function buildCashflow(
 export function nodesAtDepth(flow: Cashflow, depth: number): FlowNode[] {
   return flow.nodes.filter((n) => n.depth === depth)
 }
+
+/**
+ * Die Buchungen hinter einem Knoten.
+ *
+ * Steht bewusst hier neben buildCashflow und nicht in der Komponente: die
+ * Zuordnung "welche Buchung steckt in diesem Knoten" gibt es damit genau
+ * einmal. Zweimal formuliert — einmal beim Summieren, einmal beim Auflisten —
+ * koennten die beiden auseinanderlaufen, und dann zeigte das Buchungsblatt
+ * andere Zahlen als die Kante, aus der es geoeffnet wurde. Bei Geld ist das
+ * kein Schoenheitsfehler.
+ *
+ * Zusicherung, die in der Pruefung nachgerechnet wird: die Summe der
+ * zurueckgegebenen Buchungen ist der Wert des Knotens.
+ *
+ * Zwei benannte Ausnahmen, beide keine Kategorie-Knoten:
+ *  - Budget: traegt max(Einnahmen, Ausgaben); aufgelistet werden die Ausgaben,
+ *    denn das ist es, was aus dem Topf herausgeht.
+ *  - Uebrig geblieben: eine Rechengroesse, dahinter steckt keine Buchung.
+ */
+export function bookingsForNode<T extends FlowTransaction>(
+  node: FlowNode,
+  transactions: T[],
+  categories: FlowCategory[],
+): T[] {
+  if (node.id === BUDGET_ID) return transactions.filter((t) => t.type === 'expense')
+  // Der Ueberschuss ist eine Rechengroesse, keine Buchung.
+  if (node.id === 'surplus') return []
+  if (node.id === NO_CATEGORY_INCOME)
+    return transactions.filter((t) => t.type === 'income' && !t.category_id)
+  if (node.id === NO_CATEGORY_EXPENSE)
+    return transactions.filter((t) => t.type === 'expense' && !t.category_id)
+
+  if (!node.categoryId) return []
+
+  // Rest-Knoten: ausschliesslich das, was direkt auf der Hauptkategorie liegt.
+  if (node.id.startsWith('direct:'))
+    return transactions.filter((t) => t.type === 'expense' && t.category_id === node.categoryId)
+
+  if (node.kind === 'subcategory')
+    return transactions.filter((t) => t.type === 'expense' && t.category_id === node.categoryId)
+
+  // Haupt- oder Einnahme-Kategorie: sie selbst und alles darunter.
+  const own = new Set<string>([node.categoryId])
+  for (const c of categories) if (c.parent_id === node.categoryId) own.add(c.id)
+  const wanted = node.kind === 'income' ? 'income' : 'expense'
+  return transactions.filter(
+    (t) => t.type === wanted && t.category_id !== null && own.has(t.category_id),
+  )
+}
