@@ -318,6 +318,15 @@ declare
   parent_parent uuid;
   parent_type   text;
 begin
+  -- Die Regel unten prueft per SELECT, ob ein Elternteil selbst Kinder hat.
+  -- Zwei gleichzeitige Transaktionen (zwei offene Tabs) koennten sich sonst
+  -- gegenseitig ueberholen: A haengt X unter Y, B haengt gleichzeitig Z unter
+  -- X — jede sieht den Stand vor der anderen, am Ende steht Y->X->Z. Der
+  -- Lock je Person macht solche Umhaengungen zueinander seriell. Er kostet
+  -- nichts Messbares (Kategorien aendern sich selten) und ist an Ende der
+  -- Transaktion automatisch wieder weg.
+  perform pg_advisory_xact_lock(hashtext('pf_categories'), hashtext(new.owner_id::text));
+
   if new.parent_id is not null then
     select c.parent_id, c.type
       into parent_parent, parent_type
