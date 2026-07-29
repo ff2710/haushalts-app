@@ -16,6 +16,7 @@ import PersonalHome from './components/Personal/PersonalHome'
 import Transactions from './components/Personal/Transactions'
 import Accounts from './components/Personal/Accounts'
 import Planning from './components/Personal/Planning'
+import Analysis from './components/Personal/Analysis'
 import type { Area } from './types'
 import Modal from './components/ui/Modal'
 import {
@@ -28,11 +29,12 @@ import {
   PersonIcon,
   EmbraceIcon,
   TransactionsIcon,
+  FlowIcon,
   WalletIcon,
   CalendarIcon,
 } from './components/ui/Icon'
 
-type Tab = 'shopping' | 'finance' | 'overview' | 'transactions' | 'planning' | 'accounts'
+type Tab = 'shopping' | 'finance' | 'overview' | 'analysis' | 'transactions' | 'planning' | 'accounts'
 
 interface TabDef {
   id: Tab
@@ -56,6 +58,7 @@ const TABS: Record<Area, TabDef[]> = {
   ],
   personal: [
     { id: 'overview',     label: 'Übersicht', Icon: ChartIcon },
+    { id: 'analysis',     label: 'Analyse',   Icon: FlowIcon },
     { id: 'transactions', label: 'Umsätze',   Icon: TransactionsIcon },
     { id: 'planning',     label: 'Planung',   Icon: CalendarIcon },
     { id: 'accounts',     label: 'Konten',    Icon: WalletIcon },
@@ -229,6 +232,8 @@ function Shell() {
               <ShoppingList />
             ) : tab === 'finance' ? (
               <Finance />
+            ) : tab === 'analysis' ? (
+              <Analysis />
             ) : tab === 'transactions' ? (
               <Transactions />
             ) : tab === 'planning' ? (

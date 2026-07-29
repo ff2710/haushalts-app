@@ -105,6 +105,27 @@ export async function fetchTransactionsForMonth(month: string) {
     .order('date', { ascending: false })
 }
 
+/**
+ * Alle Umsaetze eines Zeitraums — Grundlage der Analyse-Ansicht.
+ *
+ * `endExclusive` ist bewusst exklusiv (lt statt lte): so passen die Grenzen
+ * direkt auf die Zeitraeume aus lib/period.ts, und der Monatsletzte kann weder
+ * doppelt noch gar nicht gezaehlt werden.
+ *
+ * Ohne Obergrenze, wie fetchTransactionsForMonth: aus diesen Zeilen werden
+ * Geldsummen gebildet, und eine stillschweigend abgeschnittene Liste ergaebe
+ * stillschweigend zu kleine Summen.
+ */
+export async function fetchTransactionsBetween(start: string, endExclusive: string) {
+  return supabase
+    .from(TABLE.PF_TRANSACTIONS)
+    .select('*')
+    .gte('date', start)
+    .lt('date', endExclusive)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+}
+
 /** Vergleichsdaten fuer die Dubletten-Pruefung (Datumsfenster aus dedupWindow).
  *  RLS liefert ausschliesslich eigene Zeilen. */
 export async function fetchTransactionsInRange(from: string, to: string) {

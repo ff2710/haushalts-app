@@ -305,6 +305,18 @@ export function ChartIcon(p: IconProps) {
   )
 }
 
+/** Analyse: aufgefächerte Ströme — ein Zufluss, der sich aufteilt (Sankey). */
+export function FlowIcon(p: IconProps) {
+  return (
+    <IconBase {...p}>
+      <path d="M3 12h4" />
+      <path d="M7 12c4 0 3.5-6 8-6h6" />
+      <path d="M7 12c4 0 3.5 6 8 6h6" />
+      <path d="M7 12h14" />
+    </IconBase>
+  )
+}
+
 /** Umsätze: Liste mit Auf-/Ab-Pfeilen (rein und raus). */
 export function TransactionsIcon(p: IconProps) {
   return (
