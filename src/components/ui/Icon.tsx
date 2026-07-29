@@ -58,11 +58,25 @@ export function BasketIcon(p: IconProps) {
   )
 }
 
-export function EuroIcon(p: IconProps) {
+/** Balkenwaage – Tab „Split" im Gemeinsam-Bereich.
+ *  Loest das fruehere EuroIcon ab: dort geht es nicht um Geld an sich, sondern
+ *  darum, dass zwischen zweien ausgeglichen wird. */
+export function ScaleIcon(p: IconProps) {
   return (
     <IconBase {...p}>
-      <path d="M16.5 7.8A5 5 0 1 0 16.5 16.2" />
-      <path d="M5 10.5h8M5 13.5h8" />
+      {/* Staender: Saeule, Balken, Fuss */}
+      <path d="M12 4.5v15" />
+      <path d="M4.5 7.5h15" />
+      <path d="M8.5 19.5h7" />
+      {/* Waagschalen: kurze Aufhaengung, dann die Schale als Bogen nach unten.
+          Radius 3.5 auf 6 Einheiten Sehne — tief genug, dass die Schale auch
+          bei 16 px nicht als zweiter Balken gelesen wird. */}
+      <path d="M5 7.5v3" />
+      <path d="M2 10.5h6" />
+      <path d="M2 10.5a3.5 3.5 0 0 0 6 0" />
+      <path d="M19 7.5v3" />
+      <path d="M16 10.5h6" />
+      <path d="M16 10.5a3.5 3.5 0 0 0 6 0" />
     </IconBase>
   )
 }

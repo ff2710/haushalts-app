@@ -14,7 +14,7 @@ Eine private WebApp für zwei Personen – gemeinsame Einkaufsliste und Ausgaben
 - Sortierung: Manuell per Drag-and-Drop, nach Datum oder Name
 - Artikel abhaken und löschen
 
-**Finanzen**
+**Split** (gemeinsame Ausgaben)
 - Ausgaben erfassen (Betrag, Beschreibung, Datum, wer bezahlt, wer profitiert)
 - Live-Saldo: wer schuldet wem wie viel
 - Zahlungsausgleich vermerken + vollständiger Verlauf

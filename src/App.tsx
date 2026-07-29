@@ -21,7 +21,7 @@ import Modal from './components/ui/Modal'
 import {
   BasketIcon,
   ChartIcon,
-  EuroIcon,
+  ScaleIcon,
   GearIcon,
   HouseIcon,
   HeartIcon,
@@ -50,7 +50,9 @@ interface TabDef {
 const TABS: Record<Area, TabDef[]> = {
   shared: [
     { id: 'shopping', label: 'Einkauf',  Icon: BasketIcon },
-    { id: 'finance',  label: 'Finanzen', Icon: EuroIcon },
+    // Tab-ID bleibt 'finance' (und der Ordner components/Finance/) — umbenannt
+    // wird nur, was Caro und Fidel sehen.
+    { id: 'finance',  label: 'Split',    Icon: ScaleIcon },
   ],
   personal: [
     { id: 'overview',     label: 'Übersicht', Icon: ChartIcon },
