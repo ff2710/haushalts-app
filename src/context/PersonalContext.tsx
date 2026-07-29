@@ -48,7 +48,9 @@ const categoryErr = (code: string | undefined, fallback: string) => {
   if (code === '23505')
     dbErr('Diesen Namen gibt es an derselben Stelle schon.')
   else if (code === '23514')
-    dbErr('Das erlaubt die Struktur nicht: höchstens zwei Ebenen, und Unter- und Hauptkategorie müssen dieselbe Art haben.')
+    // Deckt alle Regeln des Triggers ab: dritte Ebene, Typ-Mischung, und den
+    // Typwechsel an einer Kategorie, an der noch Unterkategorien haengen.
+    dbErr('Das erlaubt die Kategorie-Struktur nicht — höchstens zwei Ebenen, gleiche Art wie die Hauptkategorie, und die Art bleibt fest, solange Unterkategorien daran hängen.')
   else if (code === '23503')
     dbErr('Die gewählte Hauptkategorie gibt es nicht mehr.')
   else dbErr(fallback)

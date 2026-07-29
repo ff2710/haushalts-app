@@ -82,6 +82,10 @@ export default function CategorySheet({
 
   // Doppelte Namen faengt der Unique-Index ohnehin ab; hier vorab gemeldet,
   // damit man es sieht, bevor man auf Speichern drueckt.
+  //
+  // Bewusst strenger als die Datenbank: die vergleicht Gross-/Kleinschreibung
+  // mit, "Auto" neben "auto" waere dort also erlaubt. Zwei Kategorien, die sich
+  // nur darin unterscheiden, sind in einer Liste aber nicht auseinanderzuhalten.
   const duplicate = categories.some(
     (c) =>
       c.id !== category?.id &&

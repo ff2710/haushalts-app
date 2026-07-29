@@ -68,12 +68,17 @@ export default function Planning() {
     return m
   }, [monthTransactions])
 
-  // Budgets: dieselbe Reihenfolge wie in der Kategorienliste, damit man nicht
-  // zwei verschieden sortierte Listen derselben Sache vor sich hat.
-  const budgetRows = useMemo(
-    () => orderedCategories(categories.filter((c) => c.type === 'expense')),
+  // Einmal je Typ sortieren und beides daraus bedienen: die Kategorienliste
+  // und die Budgetliste zeigen dieselben Zeilen in derselben Reihenfolge —
+  // zwei verschieden sortierte Listen derselben Sache waeren verwirrend.
+  const catRows = useMemo(
+    () => ({
+      expense: orderedCategories(categories.filter((c) => c.type === 'expense')),
+      income:  orderedCategories(categories.filter((c) => c.type === 'income')),
+    }),
     [categories],
   )
+  const budgetRows = catRows.expense
 
   if (loading) {
     return (
@@ -242,7 +247,7 @@ export default function Planning() {
       {/* Erst hier entsteht die Struktur, auf der Budgets und die Analyse-
           Ansicht aufsetzen: Hauptkategorien mit je einer Ebene Unterkategorien. */}
       {(['expense', 'income'] as PfCategoryType[]).map((t) => {
-        const rows = orderedCategories(categories.filter((c) => c.type === t))
+        const rows = catRows[t]
         return (
           <section key={t}>
             <p className={sLabel}>{t === 'expense' ? 'Ausgaben-Kategorien' : 'Einnahme-Kategorien'}</p>
