@@ -105,6 +105,9 @@ export interface PfCategory {
   name: string
   type: PfCategoryType
   color: string
+  /** Elternkategorie; null = Hauptkategorie. Genau zwei Ebenen — eine
+   *  Unterkategorie kann selbst kein Elternteil sein (per Trigger gesichert). */
+  parent_id: string | null
   /** Monatsbudget der Kategorie; null = kein Budget gesetzt. */
   monthly_budget: number | null
   /** Ab welchem Anteil des Budgets gewarnt wird (0–1, Standard 0,8). */

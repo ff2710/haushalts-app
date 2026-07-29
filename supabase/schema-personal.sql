@@ -240,6 +240,130 @@ create table if not exists public.pf_monthly_plan (
 create unique index if not exists pf_monthly_plan_owner_month_key
   on public.pf_monthly_plan(owner_id, year_month);
 
+-- ---------------------------------------------------------------------------
+-- 6. Unterkategorien (Phase 2.5) — pf_categories.parent_id
+--
+--    Genau ZWEI Ebenen: Hauptkategorie (parent_id is null) -> Unterkategorie.
+--    Eine Unterkategorie darf nie selbst Elternteil werden. Ein Check-Constraint
+--    kann das nicht leisten (er sieht nur die eigene Zeile) — deshalb der
+--    Trigger weiter unten.
+--
+--    Rein additiv: neue Spalte, neue Constraints, neuer Index. Bestehende
+--    Zeilen bleiben unveraendert Hauptkategorien (parent_id bleibt null).
+-- ---------------------------------------------------------------------------
+alter table public.pf_categories
+  add column if not exists parent_id uuid;
+
+-- Verweis nur auf eine EIGENE Kategorie — gleiches Muster wie bei den
+-- Transaktionen: Fremdschluessel-Pruefungen umgehen RLS, ein FK auf (id) allein
+-- liesse also eine fremde UUID durch. Deshalb ueber (owner_id, id).
+--
+-- Beim Loeschen einer Hauptkategorie werden ihre Unterkategorien wieder zu
+-- Hauptkategorien (set null), statt still mit geloescht zu werden.
+-- Randfall: traegt dann eine hochgestufte Unterkategorie denselben Namen wie
+-- eine bestehende Hauptkategorie, scheitert das Loeschen am Unique-Index
+-- weiter unten. Das ist gewollt — lieber eine sichtbare Fehlermeldung als
+-- stilles Verschwinden von Kategorien.
+--
+-- "add constraint" kennt kein "if not exists"; das do-Block-Muster mit
+-- duplicate_object macht es idempotent.
+do $$
+begin
+  alter table public.pf_categories
+    add constraint pf_categories_parent_fk
+    foreign key (owner_id, parent_id)
+    references public.pf_categories(owner_id, id)
+    on delete set null (parent_id);
+exception
+  when duplicate_object then null;  -- bereits vorhanden
+end $$;
+
+do $$
+begin
+  alter table public.pf_categories
+    add constraint pf_categories_no_self_parent
+    check (parent_id is null or parent_id <> id);
+exception
+  when duplicate_object then null;
+end $$;
+
+create index if not exists pf_categories_owner_parent_idx
+  on public.pf_categories(owner_id, parent_id);
+
+-- Eindeutigkeit MIT Elternteil: derselbe Name darf unter verschiedenen Eltern
+-- vorkommen ("Transport" unter Mobilitaet UND unter Reisen), aber nicht zweimal
+-- unter demselben.
+--
+-- NULLS NOT DISTINCT (PG 15+) ist hier der entscheidende Teil: standardmaessig
+-- behandelt Postgres zwei NULL-parent_id als verschieden — zwei gleichnamige
+-- HAUPTkategorien waeren dann erlaubt, und der Seed der Standard-Kategorien
+-- verloere seine Idempotenz (er verlaesst sich auf die Unique-Verletzung).
+create unique index if not exists pf_categories_owner_parent_name_type_key
+  on public.pf_categories (owner_id, parent_id, name, type) nulls not distinct;
+
+-- Loest den alten Index ab: (owner_id, name, type) haette denselben Namen unter
+-- zwei verschiedenen Eltern verboten. Ein Index traegt keine Daten, und die
+-- Eindeutigkeit uebernimmt vollstaendig der Index darueber — fuer
+-- Hauptkategorien dank NULLS NOT DISTINCT deckungsgleich mit dem alten.
+drop index if exists public.pf_categories_owner_name_type_key;
+
+-- Zwei-Ebenen-Regel + Typgleichheit. Laeuft als aufrufende Rolle (kein
+-- security definer), die Abfragen sehen also nur eigene Zeilen — genau richtig,
+-- denn Eltern und Kinder gehoeren per FK ohnehin derselben Person.
+create or replace function public.pf_categories_enforce_two_levels()
+returns trigger
+language plpgsql
+as $$
+declare
+  parent_parent uuid;
+  parent_type   text;
+begin
+  if new.parent_id is not null then
+    select c.parent_id, c.type
+      into parent_parent, parent_type
+      from public.pf_categories c
+     where c.id = new.parent_id;
+
+    if not found then
+      raise exception 'Elternkategorie existiert nicht.'
+        using errcode = 'foreign_key_violation';
+    end if;
+
+    if parent_parent is not null then
+      raise exception 'Maximal zwei Ebenen: eine Unterkategorie kann selbst kein Elternteil sein.'
+        using errcode = 'check_violation';
+    end if;
+
+    if parent_type is distinct from new.type then
+      raise exception 'Unter- und Hauptkategorie muessen denselben Typ haben (income/expense).'
+        using errcode = 'check_violation';
+    end if;
+
+    -- Die andere Richtung derselben Regel: was schon Kinder hat, darf nicht
+    -- selbst unter ein Elternteil rutschen.
+    if exists (select 1 from public.pf_categories c where c.parent_id = new.id) then
+      raise exception 'Diese Kategorie hat Unterkategorien und kann daher selbst keine werden.'
+        using errcode = 'check_violation';
+    end if;
+  end if;
+
+  -- Typwechsel einer Hauptkategorie wuerde ihre Unterkategorien auf dem alten
+  -- Typ zuruecklassen — dann stimmten Sankey und Donut nicht mehr ueberein.
+  if tg_op = 'UPDATE'
+     and new.type is distinct from old.type
+     and exists (select 1 from public.pf_categories c where c.parent_id = new.id) then
+    raise exception 'Typ laesst sich nicht aendern, solange Unterkategorien daran haengen.'
+      using errcode = 'check_violation';
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists pf_categories_two_levels on public.pf_categories;
+create trigger pf_categories_two_levels
+  before insert or update on public.pf_categories
+  for each row execute function public.pf_categories_enforce_two_levels();
+
 -- ============================================================================
 -- ROW LEVEL SECURITY — die eigentliche Isolation
 -- ============================================================================
