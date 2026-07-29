@@ -9,47 +9,45 @@ import type { PfCategory, PfCategoryType } from '../../types'
 interface Props {
   open: boolean
   onClose: () => void
-  /** null = neue Kategorie anlegen. */
+  /** null = neu anlegen. */
   category: PfCategory | null
-  /** Vorauswahl beim Anlegen (der Abschnitt, aus dem heraus geklickt wurde). */
-  defaultType?: PfCategoryType
-  /** Vorauswahl beim Anlegen: direkt als Unterkategorie hierunter. */
-  defaultParentId?: string | null
+  /** Bindend beim Anlegen — kommt aus dem Abschnitt, aus dem heraus geklickt
+   *  wurde. Beim Bearbeiten steht die Art ohnehin schon fest. */
+  type: PfCategoryType
+  /** Bindend beim Anlegen: null = Hauptkategorie, sonst die Elternkategorie. */
+  parentId: string | null
 }
 
 /**
- * Kategorien anlegen und bearbeiten — inklusive Unterkategorien (eine Ebene
- * tief, mehr laesst die Datenbank nicht zu).
+ * Kategorien anlegen und bearbeiten.
  *
- * Die Oberflaeche bietet erst gar nicht an, was die DB-Regeln verbieten:
- * Unterkategorien erscheinen nicht als moegliches Elternteil, eine Kategorie
- * mit Kindern kann selbst keins bekommen, und der Typ ist gesperrt, solange
- * Kinder daran haengen. Die Fehlermeldungen aus der Datenbank sind trotzdem
- * das Sicherheitsnetz, falls zwei Geraete gleichzeitig arbeiten.
+ * Beim Anlegen gibt es bewusst KEINE Auswahl fuer Art und Einordnung: wer auf
+ * „+ Ausgaben-Kategorie" tippt, will eine Ausgaben-Hauptkategorie, und wer das
+ * Plus an „Freizeit" antippt, will eine Unterkategorie darunter. Beides noch
+ * einmal zur Wahl zu stellen waere nur eine Gelegenheit, es falsch zu machen.
+ *
+ * Bleibt genau ein Feld, das immer noetig ist — der Name — und die Farbe bei
+ * Hauptkategorien. Verschoben wird nur beim Bearbeiten, wo es auch gebraucht
+ * wird (versehentlich falsch einsortiert).
  */
-export default function CategorySheet({
-  open,
-  onClose,
-  category,
-  defaultType = 'expense',
-  defaultParentId = null,
-}: Props) {
+export default function CategorySheet({ open, onClose, category, type, parentId }: Props) {
   const { categories, addCategory, updateCategory, deleteCategory } = usePersonal()
 
-  const [name, setName]     = useState('')
-  const [type, setType]     = useState<PfCategoryType>(defaultType)
-  const [color, setColor]   = useState<string>(PF_CATEGORY_COLORS[0])
-  const [parentId, setParent] = useState<string | null>(null)
-  const [busy, setBusy]     = useState(false)
+  const [name, setName]       = useState('')
+  const [color, setColor]     = useState<string>(PF_CATEGORY_COLORS[0])
+  const [parent, setParentId] = useState<string | null>(null)
+  const [busy, setBusy]       = useState(false)
+
+  // Beim Bearbeiten gilt die Art der Kategorie, beim Anlegen die des Abschnitts.
+  const effectiveType = category?.type ?? type
 
   useEffect(() => {
     if (!open) return
     setName(category?.name ?? '')
-    setType(category?.type ?? defaultType)
     setColor(category?.color ?? PF_CATEGORY_COLORS[0])
-    setParent(category ? category.parent_id : defaultParentId)
+    setParentId(category ? category.parent_id : parentId)
     setBusy(false)
-  }, [open, category, defaultType, defaultParentId])
+  }, [open, category, parentId])
 
   const children = useMemo(
     () => (category ? categories.filter((c) => c.parent_id === category.id) : []),
@@ -57,26 +55,32 @@ export default function CategorySheet({
   )
   const hasChildren = children.length > 0
 
-  // Moegliche Elternteile: nur Hauptkategorien desselben Typs, und niemals
-  // die Kategorie selbst.
-  const parentOptions = useMemo(
+  const parentCategory = parent ? (categories.find((c) => c.id === parent) ?? null) : null
+
+  // Ziele zum Verschieben: nur Hauptkategorien derselben Art, nie man selbst.
+  const moveTargets = useMemo(
     () =>
       categories.filter(
-        (c) => c.parent_id === null && c.type === type && c.id !== category?.id,
+        (c) => c.parent_id === null && c.type === effectiveType && c.id !== category?.id,
       ),
-    [categories, type, category],
+    [categories, effectiveType, category],
   )
-
-  const parent = parentId ? (categories.find((c) => c.id === parentId) ?? null) : null
 
   // Vorschau der abgeleiteten Farbe: dieselbe Funktion, die auch Sankey und
   // Donut benutzen — was hier zu sehen ist, steht spaeter so im Diagramm.
   const derivedColor = useMemo(() => {
-    if (!parent) return null
-    const siblings = categories.filter((c) => c.parent_id === parent.id && c.id !== category?.id)
-    const provisional = { id: category?.id ?? '__neu', name: name.trim() || 'Neu', color, parent_id: parent.id }
-    return categoryColorMap([parent, ...siblings, provisional]).get(provisional.id) ?? parent.color
-  }, [parent, categories, category, name, color])
+    if (!parentCategory) return null
+    const siblings = categories.filter(
+      (c) => c.parent_id === parentCategory.id && c.id !== category?.id,
+    )
+    const own = {
+      id: category?.id ?? '__neu',
+      name: name.trim() || 'Neu',
+      color,
+      parent_id: parentCategory.id,
+    }
+    return categoryColorMap([parentCategory, ...siblings, own]).get(own.id) ?? parentCategory.color
+  }, [parentCategory, categories, category, name, color])
 
   const trimmed = name.trim()
 
@@ -89,8 +93,8 @@ export default function CategorySheet({
   const duplicate = categories.some(
     (c) =>
       c.id !== category?.id &&
-      c.type === type &&
-      c.parent_id === parentId &&
+      c.type === effectiveType &&
+      c.parent_id === parent &&
       c.name.toLowerCase() === trimmed.toLowerCase(),
   )
 
@@ -102,18 +106,16 @@ export default function CategorySheet({
     setBusy(true)
     const payload = {
       name: trimmed,
-      type,
+      type: effectiveType,
       // Unterkategorien tragen die abgeleitete Farbe des Elternteils. Der Wert
       // wird trotzdem gespeichert, damit eine spaeter hochgestufte Kategorie
       // (Elternteil geloescht) nicht farblos dasteht.
-      color: parent ? (derivedColor ?? parent.color) : color,
-      parent_id: parentId,
+      color: parentCategory ? (derivedColor ?? parentCategory.color) : color,
+      parent_id: parent,
       monthly_budget: category?.monthly_budget ?? null,
       warn_ratio: category?.warn_ratio ?? 0.8,
     }
-    const ok = category
-      ? await updateCategory(category.id, payload)
-      : await addCategory(payload)
+    const ok = category ? await updateCategory(category.id, payload) : await addCategory(payload)
     setBusy(false)
     if (ok) onClose()
   }
@@ -129,104 +131,64 @@ export default function CategorySheet({
   const field =
     'mt-1.5 w-full rounded-2xl bg-zinc-100 px-4 py-3 text-[15px] text-zinc-900 outline-none placeholder:text-zinc-400 focus:ring-2 focus:ring-brand-400'
 
-  const chip = (on: boolean, disabled = false) =>
+  const chip = (on: boolean) =>
     'rounded-xl px-3 py-2 text-[13px] font-medium transition-colors duration-150 ' +
-    (disabled
-      ? 'bg-zinc-50 text-zinc-300'
-      : on
-        ? 'bg-brand-600 text-white'
-        : 'bg-zinc-100 text-zinc-600')
+    (on ? 'bg-brand-600 text-white' : 'bg-zinc-100 text-zinc-600')
+
+  const kindLabel = effectiveType === 'expense' ? 'Ausgaben' : 'Einnahme'
+  const title = category
+    ? category.parent_id
+      ? 'Unterkategorie bearbeiten'
+      : 'Kategorie bearbeiten'
+    : parentCategory
+      ? 'Neue Unterkategorie'
+      : `Neue ${kindLabel}-Kategorie`
 
   return (
     <BottomSheet open={open} onClose={onClose}>
       <form onSubmit={submit} className="px-5 pt-2">
-        <h2 className="text-[17px] font-semibold tracking-[-0.3px] text-zinc-900">
-          {category
-            ? category.parent_id
-              ? 'Unterkategorie bearbeiten'
-              : 'Kategorie bearbeiten'
-            : parentId
-              ? 'Neue Unterkategorie'
-              : 'Neue Kategorie'}
-        </h2>
+        <h2 className="text-[17px] font-semibold tracking-[-0.3px] text-zinc-900">{title}</h2>
+        {/* Statt einer Auswahl: der Kontext steht als Satz da, damit klar ist,
+            wo das hier landet. */}
+        {!category && (
+          <p className="mt-1 text-[13px] text-zinc-500">
+            {parentCategory ? (
+              <>
+                unter{' '}
+                <span className="font-medium text-zinc-700">{parentCategory.name}</span>
+              </>
+            ) : (
+              `Eigenständige ${kindLabel === 'Ausgaben' ? 'Ausgaben-Kategorie' : 'Einnahme-Kategorie'}`
+            )}
+          </p>
+        )}
 
         <label className="mt-4 block text-[13px] font-medium text-zinc-500">Name</label>
         <input
           autoFocus={!category}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="z. B. Lebensmittel"
+          placeholder={parentCategory ? 'z. B. Media & Entertainment' : 'z. B. Freizeit'}
           className={field}
         />
         {duplicate && (
           <p className="mt-1.5 text-[12px] text-red-500">
-            {parent
-              ? `Unter „${parent.name}" gibt es diesen Namen schon.`
+            {parentCategory
+              ? `Unter „${parentCategory.name}" gibt es diesen Namen schon.`
               : 'Diesen Namen gibt es als Hauptkategorie schon.'}
           </p>
         )}
 
-        {/* ── Typ ──────────────────────────────────────────────────────────── */}
-        <label className="mt-4 block text-[13px] font-medium text-zinc-500">Art</label>
-        <div className="mt-1.5 flex gap-2">
-          {(['expense', 'income'] as PfCategoryType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              disabled={hasChildren}
-              onClick={() => {
-                setType(t)
-                // Ein Elternteil des anderen Typs waere nicht erlaubt.
-                if (parent && parent.type !== t) setParent(null)
-              }}
-              className={chip(type === t, hasChildren && type !== t)}
-            >
-              {t === 'expense' ? 'Ausgabe' : 'Einnahme'}
-            </button>
-          ))}
-        </div>
-        {hasChildren && (
-          <p className="mt-1.5 text-[12px] text-zinc-400">
-            Die Art lässt sich nicht ändern, solange {children.length}{' '}
-            {children.length === 1 ? 'Unterkategorie' : 'Unterkategorien'} daran hängen.
-          </p>
-        )}
-
-        {/* ── Einordnung ───────────────────────────────────────────────────── */}
-        <label className="mt-4 block text-[13px] font-medium text-zinc-500">Gehört zu</label>
-        {hasChildren ? (
-          <p className="mt-1.5 rounded-2xl bg-zinc-50 px-4 py-3 text-[13px] leading-snug text-zinc-500">
-            Diese Kategorie hat selbst Unterkategorien und bleibt deshalb eine
-            Hauptkategorie — mehr als zwei Ebenen gibt es nicht.
-          </p>
-        ) : (
-          <div className="mt-1.5 flex flex-wrap gap-2">
-            <button type="button" onClick={() => setParent(null)} className={chip(parentId === null)}>
-              Hauptkategorie
-            </button>
-            {parentOptions.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setParent(c.id)}
-                className={chip(parentId === c.id)}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* ── Farbe ────────────────────────────────────────────────────────── */}
         <label className="mt-4 block text-[13px] font-medium text-zinc-500">Farbe</label>
-        {parent ? (
+        {parentCategory ? (
           <div className="mt-1.5 flex items-center gap-3 rounded-2xl bg-zinc-50 px-4 py-3">
             <span
               className="h-6 w-6 shrink-0 rounded-full ring-1 ring-black/10"
-              style={{ backgroundColor: derivedColor ?? parent.color }}
+              style={{ backgroundColor: derivedColor ?? parentCategory.color }}
             />
             <span className="text-[13px] leading-snug text-zinc-500">
-              Wird aus „{parent.name}" abgeleitet — so bleibt im Diagramm sichtbar,
+              Wird aus „{parentCategory.name}" abgeleitet — so bleibt im Diagramm sichtbar,
               was zusammengehört.
             </span>
           </div>
@@ -246,6 +208,38 @@ export default function CategorySheet({
               />
             ))}
           </div>
+        )}
+
+        {/* ── Verschieben (nur beim Bearbeiten) ─────────────────────────────
+            Beim Anlegen steht die Einordnung durch den Kontext fest. Beim
+            Bearbeiten braucht es den Weg, um falsch Einsortiertes zu heilen. */}
+        {category && !hasChildren && moveTargets.length > 0 && (
+          <>
+            <label className="mt-5 block text-[13px] font-medium text-zinc-500">
+              Einordnung
+            </label>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              <button type="button" onClick={() => setParentId(null)} className={chip(parent === null)}>
+                Eigenständig
+              </button>
+              {moveTargets.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setParentId(c.id)}
+                  className={chip(parent === c.id)}
+                >
+                  unter {c.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {category && hasChildren && (
+          <p className="mt-4 rounded-2xl bg-zinc-50 px-4 py-3 text-[13px] leading-snug text-zinc-500">
+            {children.length === 1 ? 'Eine Unterkategorie hängt' : `${children.length} Unterkategorien hängen`}{' '}
+            hier dran — deshalb bleibt das eine Hauptkategorie.
+          </p>
         )}
 
         <button

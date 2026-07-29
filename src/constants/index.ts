@@ -38,17 +38,32 @@ export const PF_SUGGESTION_SCAN_LIMIT = 1000
 /** Wie viele Umsaetze die Liste initial laedt. */
 export const PF_TX_PAGE_SIZE = 100
 
-/** Standard-Kategorien, die beim ersten Oeffnen des Persoenlich-Bereichs
- *  je Person angelegt werden (Port aus dem Finanztracker). */
+/**
+ * Standard-Kategorien, die beim ersten Oeffnen des Persoenlich-Bereichs je
+ * Person angelegt werden.
+ *
+ * Bewusst nur HAUPTkategorien, und zwar nach der Frage geschnitten "wofuer ist
+ * das Geld weg?" — nicht danach, wie es abgebucht wird. Deshalb gibt es hier
+ * kein "Abos & Vertraege": Netflix ist Freizeit, die Hausratversicherung ist
+ * Wohnen. Dass beides regelmaessig abgeht, ist eine Eigenschaft der Zahlung,
+ * keine eigene Kategorie — sonst laege dieselbe Ausgabe je nach Zahlungsweise
+ * in verschiedenen Toepfen und die Auswertung waere wertlos.
+ *
+ * Unterkategorien legt jede Person selbst an; ein Vorrat an geratenen
+ * Unterkategorien waere vor allem Aufraeumarbeit.
+ */
 export const PF_DEFAULT_CATEGORIES = [
-  { name: 'Gehalt',              type: 'income',  color: '#16a34a' },
-  { name: 'Sonstige Einnahmen',  type: 'income',  color: '#22c55e' },
-  { name: 'Lebensmittel',        type: 'expense', color: '#ef4444' },
-  { name: 'Miete & Wohnen',      type: 'expense', color: '#f97316' },
-  { name: 'Mobilität',           type: 'expense', color: '#eab308' },
-  { name: 'Freizeit',            type: 'expense', color: '#8b5cf6' },
-  { name: 'Abos & Verträge',     type: 'expense', color: '#ec4899' },
-  { name: 'Sonstiges',           type: 'expense', color: '#64748b' },
+  { name: 'Gehalt',                 type: 'income',  color: '#16a34a' },
+  { name: 'Sonstige Einnahmen',     type: 'income',  color: '#14b8a6' },
+  { name: 'Miete & Wohnen',         type: 'expense', color: '#8b5cf6' },
+  { name: 'Lebensmittel',           type: 'expense', color: '#16a34a' },
+  { name: 'Täglicher Bedarf',       type: 'expense', color: '#0ea5e9' },
+  { name: 'Mobilität',              type: 'expense', color: '#ef4444' },
+  { name: 'Freizeit',               type: 'expense', color: '#ec4899' },
+  { name: 'Reisen',                 type: 'expense', color: '#f97316' },
+  { name: 'Versicherung & Gesundheit', type: 'expense', color: '#3b82f6' },
+  { name: 'Sparen & Anlegen',       type: 'expense', color: '#14b8a6' },
+  { name: 'Sonstiges',              type: 'expense', color: '#64748b' },
 ] as const
 
 /** Auswahlfarben fuer HAUPTkategorien. Unterkategorien bekommen keine eigene

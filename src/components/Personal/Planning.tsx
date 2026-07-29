@@ -392,8 +392,8 @@ export default function Planning() {
         open={catOpen}
         onClose={() => setCatOpen(false)}
         category={catEdit}
-        defaultType={catType}
-        defaultParentId={catParent}
+        type={catType}
+        parentId={catParent}
       />
     </div>
   )
