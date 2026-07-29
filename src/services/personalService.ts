@@ -1,7 +1,19 @@
 import { supabase } from '../lib/supabase'
-import { TABLE, PF_DEFAULT_CATEGORIES, PF_TX_PAGE_SIZE } from '../constants'
+import {
+  TABLE,
+  PF_DEFAULT_CATEGORIES,
+  PF_TX_PAGE_SIZE,
+  PF_SUGGESTION_SCAN_LIMIT,
+} from '../constants'
 import { makeDedupKey } from '../lib/dedup'
-import type { PfAccountInput, PfCategoryInput, PfTransactionInput } from '../types'
+import type {
+  PfAccountInput,
+  PfCategoryInput,
+  PfFixedCostInput,
+  PfRecurringIncomeInput,
+  PfTransactionInput,
+  PfVariableEstimateInput,
+} from '../types'
 
 // Duenne Supabase-Wrapper fuer den Persoenlich-Bereich — gleiches Muster wie
 // financeService.ts.
@@ -72,6 +84,25 @@ export async function fetchTransactions(limit = PF_TX_PAGE_SIZE) {
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(limit)
+}
+
+/**
+ * ALLE Umsaetze eines Monats — ohne die Obergrenze von fetchTransactions.
+ *
+ * Wichtig fuer Geld-Anzeigen (Monatssaldo, Budget-Verbrauch): die Liste im
+ * Context haelt nur die juengsten PF_TX_PAGE_SIZE Zeilen. Haette ein Monat mehr
+ * Buchungen als das, wuerden Summen daraus stillschweigend zu niedrig
+ * ausfallen. Deshalb hier monatsgenau und unbegrenzt laden.
+ */
+export async function fetchTransactionsForMonth(month: string) {
+  const [y, m] = month.split('-').map(Number)
+  const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`
+  return supabase
+    .from(TABLE.PF_TRANSACTIONS)
+    .select('*')
+    .gte('date', `${month}-01`)
+    .lt('date', next)
+    .order('date', { ascending: false })
 }
 
 /** Vergleichsdaten fuer die Dubletten-Pruefung (Datumsfenster aus dedupWindow).
@@ -156,4 +187,88 @@ export async function addTransactionsForBatch(
  *  Transaktionen dieses Imports — nichts anderes. */
 export async function deleteImportBatch(id: string) {
   return supabase.from(TABLE.PF_IMPORT_BATCHES).delete().eq('id', id)
+}
+
+// ---------------------------------------------------------------------------
+// Planungs-Ebene (Phase 2): Fixkosten, regelmaessige Einnahmen, Schaetzposten
+// ---------------------------------------------------------------------------
+
+export async function fetchFixedCosts() {
+  return supabase.from(TABLE.PF_FIXED_COSTS).select('*').order('name', { ascending: true })
+}
+
+export async function addFixedCost(data: PfFixedCostInput) {
+  return supabase.from(TABLE.PF_FIXED_COSTS).insert(data).select().single()
+}
+
+export async function updateFixedCost(id: string, data: Partial<PfFixedCostInput>) {
+  return supabase.from(TABLE.PF_FIXED_COSTS).update(data).eq('id', id)
+}
+
+export async function deleteFixedCost(id: string) {
+  return supabase.from(TABLE.PF_FIXED_COSTS).delete().eq('id', id)
+}
+
+export async function fetchRecurringIncome() {
+  return supabase.from(TABLE.PF_RECURRING_INCOME).select('*').order('name', { ascending: true })
+}
+
+export async function addRecurringIncome(data: PfRecurringIncomeInput) {
+  return supabase.from(TABLE.PF_RECURRING_INCOME).insert(data).select().single()
+}
+
+export async function updateRecurringIncome(id: string, data: Partial<PfRecurringIncomeInput>) {
+  return supabase.from(TABLE.PF_RECURRING_INCOME).update(data).eq('id', id)
+}
+
+export async function deleteRecurringIncome(id: string) {
+  return supabase.from(TABLE.PF_RECURRING_INCOME).delete().eq('id', id)
+}
+
+export async function fetchVariableEstimates() {
+  return supabase
+    .from(TABLE.PF_VARIABLE_ESTIMATES)
+    .select('*')
+    .order('created_at', { ascending: true })
+}
+
+export async function addVariableEstimate(data: PfVariableEstimateInput) {
+  return supabase.from(TABLE.PF_VARIABLE_ESTIMATES).insert(data).select().single()
+}
+
+export async function updateVariableEstimate(id: string, data: Partial<PfVariableEstimateInput>) {
+  return supabase.from(TABLE.PF_VARIABLE_ESTIMATES).update(data).eq('id', id)
+}
+
+export async function deleteVariableEstimate(id: string) {
+  return supabase.from(TABLE.PF_VARIABLE_ESTIMATES).delete().eq('id', id)
+}
+
+/**
+ * Ausgaben-Summen je Monat VOR `month` — Grundlage fuer den Vorschlagswert der
+ * Prognose (Ø der letzten bis zu 3 Monate mit Daten).
+ *
+ * Bewusst clientseitig gruppiert statt per SQL-Aggregat: dafuer braeuchte es
+ * eine zusaetzliche Datenbank-Funktion. Die Abfrage ist auf die juengsten
+ * Zeilen begrenzt (PF_SUGGESTION_SCAN_LIMIT) — bei realistischem Volumen
+ * deckt das die noetigen drei Vormonate um ein Vielfaches ab.
+ */
+export async function fetchExpenseTotalsBefore(month: string) {
+  const { data, error } = await supabase
+    .from(TABLE.PF_TRANSACTIONS)
+    .select('date,amount')
+    .eq('type', 'expense')
+    .lt('date', `${month}-01`)
+    .order('date', { ascending: false })
+    .limit(PF_SUGGESTION_SCAN_LIMIT)
+
+  if (error) return { data: null, error }
+
+  const byMonth = new Map<string, number>()
+  for (const row of (data ?? []) as { date: string; amount: number }[]) {
+    const m = row.date.slice(0, 7)
+    byMonth.set(m, (byMonth.get(m) ?? 0) + Number(row.amount))
+  }
+  const totals = [...byMonth.entries()].map(([m, total]) => ({ month: m, total }))
+  return { data: totals, error: null }
 }

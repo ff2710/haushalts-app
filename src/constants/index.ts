@@ -22,7 +22,18 @@ export const TABLE = {
   PF_CATEGORIES:     'pf_categories',
   PF_TRANSACTIONS:   'pf_transactions',
   PF_IMPORT_BATCHES: 'pf_import_batches',
+
+  // Planungs-Ebene (Phase 2)
+  PF_FIXED_COSTS:        'pf_fixed_costs',
+  PF_RECURRING_INCOME:   'pf_recurring_income',
+  PF_VARIABLE_ESTIMATES: 'pf_variable_estimates',
+  PF_MONTHLY_PLAN:       'pf_monthly_plan',
 } as const
+
+/** Obergrenze fuer die Umsaetze, aus denen der Ausgaben-Vorschlag der Prognose
+ *  berechnet wird. Deckt bei realistischem Volumen weit mehr als die noetigen
+ *  drei Vormonate ab. */
+export const PF_SUGGESTION_SCAN_LIMIT = 1000
 
 /** Wie viele Umsaetze die Liste initial laedt. */
 export const PF_TX_PAGE_SIZE = 100

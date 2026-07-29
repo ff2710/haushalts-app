@@ -151,19 +151,113 @@ create index if not exists pf_transactions_owner_dedup_idx
 create index if not exists pf_transactions_owner_batch_idx
   on public.pf_transactions(owner_id, import_batch_id);
 
+-- ---------------------------------------------------------------------------
+-- 5. Planungs-Ebene (Phase 2) — Port aus finanztracker db.js
+--
+--    Monate durchgaengig als 'YYYY-MM' (Konvention aus CLAUDE.md), per
+--    Check-Constraint abgesichert, damit die Prognose-Logik sich darauf
+--    verlassen kann.
+-- ---------------------------------------------------------------------------
+
+-- Budget-Warnschwelle. Das Budget selbst steckt bereits in
+-- pf_categories.monthly_budget (Port aus dem Finanztracker) — bewusst KEINE
+-- zweite Budget-Tabelle, sonst gaebe es zwei Quellen fuer denselben Wert.
+alter table public.pf_categories
+  add column if not exists warn_ratio numeric(4,2) not null default 0.80
+    check (warn_ratio > 0 and warn_ratio <= 1);
+
+create table if not exists public.pf_fixed_costs (
+  id           uuid primary key default gen_random_uuid(),
+  owner_id     uuid not null references auth.users(id) on delete cascade default auth.uid(),
+  name         text not null,
+  amount       numeric(12,2) not null check (amount >= 0),
+  cadence      text not null default 'monthly'
+               check (cadence in ('monthly','quarterly','half_yearly','yearly','once')),
+  due_month    text check (due_month   is null or due_month   ~ '^\d{4}-\d{2}$'),
+  start_month  text check (start_month is null or start_month ~ '^\d{4}-\d{2}$'),
+  -- auf einen Monatsbeitrag umrechnen statt erst im Faelligkeitsmonat buchen
+  amortize     boolean not null default true,
+  category_id  uuid,
+  active       boolean not null default true,
+  created_at   timestamptz not null default now(),
+
+  constraint pf_fixed_costs_category_fk
+    foreign key (owner_id, category_id)
+    references public.pf_categories(owner_id, id)
+    on delete set null (category_id)
+);
+
+create index if not exists pf_fixed_costs_owner_idx on public.pf_fixed_costs(owner_id);
+
+create table if not exists public.pf_recurring_income (
+  id           uuid primary key default gen_random_uuid(),
+  owner_id     uuid not null references auth.users(id) on delete cascade default auth.uid(),
+  -- Ergaenzung gegenueber der Referenz: dort haengt die Anzeige allein an der
+  -- Kategorie, wodurch zwei Einnahmen derselben Kategorie ununterscheidbar sind.
+  name         text not null default '',
+  amount       numeric(12,2) not null check (amount >= 0),
+  start_month  text not null check (start_month ~ '^\d{4}-\d{2}$'),
+  end_month    text check (end_month is null or end_month ~ '^\d{4}-\d{2}$'),
+  category_id  uuid,
+  active       boolean not null default true,
+  created_at   timestamptz not null default now(),
+
+  constraint pf_recurring_income_category_fk
+    foreign key (owner_id, category_id)
+    references public.pf_categories(owner_id, id)
+    on delete set null (category_id)
+);
+
+create index if not exists pf_recurring_income_owner_idx on public.pf_recurring_income(owner_id);
+
+-- Grobe Schaetzposten fuers Variable (Referenz seedet "Leben"/"Spass").
+create table if not exists public.pf_variable_estimates (
+  id         uuid primary key default gen_random_uuid(),
+  owner_id   uuid not null references auth.users(id) on delete cascade default auth.uid(),
+  name       text not null,
+  amount     numeric(12,2) not null default 0 check (amount >= 0),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists pf_variable_estimates_owner_idx
+  on public.pf_variable_estimates(owner_id);
+
+-- Monatsplan: laut Bauplan Teil des Phase-2-Ports. Aktuell noch ohne
+-- Oberflaeche — die Prognose braucht ihn nicht (sie rechnet aus Einnahmen,
+-- Fixkosten und Schaetzposten, genau wie das Original). Liegt bereit fuer eine
+-- spaetere "Plan gegen Ist"-Ansicht.
+create table if not exists public.pf_monthly_plan (
+  id              uuid primary key default gen_random_uuid(),
+  owner_id        uuid not null references auth.users(id) on delete cascade default auth.uid(),
+  year_month      text not null check (year_month ~ '^\d{4}-\d{2}$'),
+  planned_income  numeric(12,2) not null default 0 check (planned_income  >= 0),
+  planned_expense numeric(12,2) not null default 0 check (planned_expense >= 0),
+  notes           text not null default '',
+  created_at      timestamptz not null default now()
+);
+
+-- Je Person hoechstens ein Plan pro Monat (Referenz: UNIQUE year_month).
+create unique index if not exists pf_monthly_plan_owner_month_key
+  on public.pf_monthly_plan(owner_id, year_month);
+
 -- ============================================================================
 -- ROW LEVEL SECURITY — die eigentliche Isolation
 -- ============================================================================
-alter table public.pf_accounts       enable row level security;
-alter table public.pf_categories     enable row level security;
-alter table public.pf_import_batches enable row level security;
-alter table public.pf_transactions   enable row level security;
+alter table public.pf_accounts           enable row level security;
+alter table public.pf_categories         enable row level security;
+alter table public.pf_import_batches     enable row level security;
+alter table public.pf_transactions       enable row level security;
+alter table public.pf_fixed_costs        enable row level security;
+alter table public.pf_recurring_income   enable row level security;
+alter table public.pf_variable_estimates enable row level security;
+alter table public.pf_monthly_plan       enable row level security;
 
 do $$
 declare
   t text;
 begin
-  foreach t in array array['pf_accounts','pf_categories','pf_import_batches','pf_transactions']
+  foreach t in array array['pf_accounts','pf_categories','pf_import_batches','pf_transactions',
+                        'pf_fixed_costs','pf_recurring_income','pf_variable_estimates','pf_monthly_plan']
   loop
     execute format('drop policy if exists "owner_only" on public.%I;', t);
     execute format($f$
@@ -183,7 +277,8 @@ do $$
 declare
   t text;
 begin
-  foreach t in array array['pf_accounts','pf_categories','pf_import_batches','pf_transactions']
+  foreach t in array array['pf_accounts','pf_categories','pf_import_batches','pf_transactions',
+                        'pf_fixed_costs','pf_recurring_income','pf_variable_estimates','pf_monthly_plan']
   loop
     begin
       execute format('alter publication supabase_realtime add table public.%I;', t);
@@ -193,7 +288,11 @@ begin
   end loop;
 end $$;
 
-alter table public.pf_accounts       replica identity full;
-alter table public.pf_categories     replica identity full;
-alter table public.pf_import_batches replica identity full;
-alter table public.pf_transactions   replica identity full;
+alter table public.pf_accounts           replica identity full;
+alter table public.pf_categories         replica identity full;
+alter table public.pf_import_batches     replica identity full;
+alter table public.pf_transactions       replica identity full;
+alter table public.pf_fixed_costs        replica identity full;
+alter table public.pf_recurring_income   replica identity full;
+alter table public.pf_variable_estimates replica identity full;
+alter table public.pf_monthly_plan       replica identity full;

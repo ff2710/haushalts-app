@@ -105,7 +105,10 @@ export interface PfCategory {
   name: string
   type: PfCategoryType
   color: string
+  /** Monatsbudget der Kategorie; null = kein Budget gesetzt. */
   monthly_budget: number | null
+  /** Ab welchem Anteil des Budgets gewarnt wird (0–1, Standard 0,8). */
+  warn_ratio: number
   created_at: string
 }
 
@@ -146,6 +149,61 @@ export type PfTransactionInput = Omit<
   PfTransaction,
   'id' | 'owner_id' | 'created_at' | 'dedup_key'
 >
+
+// ── Planungs-Ebene (Phase 2) ────────────────────────────────────────────────
+
+export type PfCadence = 'monthly' | 'quarterly' | 'half_yearly' | 'yearly' | 'once'
+
+export interface PfFixedCost {
+  id: string
+  owner_id: string
+  name: string
+  amount: number
+  cadence: PfCadence
+  /** Fälligkeitsmonat 'YYYY-MM' — nur bei nicht-monatlichen Posten. */
+  due_month: string | null
+  /** Ab wann zurückgelegt wird ('YYYY-MM'). */
+  start_month: string | null
+  /** true = auf einen Monatsbeitrag umrechnen statt erst bei Fälligkeit. */
+  amortize: boolean
+  category_id: string | null
+  active: boolean
+  created_at: string
+}
+
+export interface PfRecurringIncome {
+  id: string
+  owner_id: string
+  name: string
+  amount: number
+  start_month: string
+  end_month: string | null
+  category_id: string | null
+  active: boolean
+  created_at: string
+}
+
+export interface PfVariableEstimate {
+  id: string
+  owner_id: string
+  name: string
+  amount: number
+  created_at: string
+}
+
+export interface PfMonthlyPlan {
+  id: string
+  owner_id: string
+  year_month: string
+  planned_income: number
+  planned_expense: number
+  notes: string
+  created_at: string
+}
+
+export type PfFixedCostInput = Omit<PfFixedCost, 'id' | 'owner_id' | 'created_at'>
+export type PfRecurringIncomeInput = Omit<PfRecurringIncome, 'id' | 'owner_id' | 'created_at'>
+export type PfVariableEstimateInput = Omit<PfVariableEstimate, 'id' | 'owner_id' | 'created_at'>
 
 /** Eine Zeile aus der CSV, nachdem sie zugeordnet und geprüft wurde. */
 export interface ImportRow {

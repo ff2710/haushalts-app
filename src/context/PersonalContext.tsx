@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase'
 import { toastEmitter } from '../lib/toastEmitter'
 import { useAuth } from './AuthContext'
 import { REALTIME_CHANNEL_PERSONAL, TABLE } from '../constants'
+import { todayISO } from '../lib/utils'
 import * as personalService from '../services/personalService'
 import type {
   ImportRow,
@@ -18,9 +19,15 @@ import type {
   PfAccountInput,
   PfCategory,
   PfCategoryInput,
+  PfFixedCost,
+  PfFixedCostInput,
   PfImportBatch,
+  PfRecurringIncome,
+  PfRecurringIncomeInput,
   PfTransaction,
   PfTransactionInput,
+  PfVariableEstimate,
+  PfVariableEstimateInput,
 } from '../types'
 
 // State des Persoenlich-Bereichs. Bewusst getrennt von AppContext: die private
@@ -31,12 +38,21 @@ import type {
 
 const dbErr = (msg: string) => toastEmitter.emit(msg)
 
+/** Laufender Monat als 'YYYY-MM' in lokaler Zeit. */
+const currentMonth = (): string => todayISO().slice(0, 7)
+
 interface PersonalContextValue {
   loading:      boolean
   accounts:     PfAccount[]
   categories:   PfCategory[]
   transactions: PfTransaction[]
+  /** ALLE Umsaetze des laufenden Monats — Grundlage aller Monatssummen.
+   *  Bewusst getrennt von `transactions`, das gedeckelt ist. */
+  monthTransactions: PfTransaction[]
   batches:      PfImportBatch[]
+  fixedCosts:   PfFixedCost[]
+  incomes:      PfRecurringIncome[]
+  estimates:    PfVariableEstimate[]
 
   addAccount:    (data: PfAccountInput) => Promise<PfAccount | null>
   updateAccount: (id: string, data: Partial<PfAccountInput>) => Promise<void>
@@ -58,6 +74,18 @@ interface PersonalContextValue {
   ) => Promise<PfImportBatch | null>
   /** Macht einen Import komplett rueckgaengig (Cascade). */
   undoImport: (batchId: string) => Promise<void>
+
+  addFixedCost:    (data: PfFixedCostInput) => Promise<void>
+  updateFixedCost: (id: string, data: Partial<PfFixedCostInput>) => Promise<void>
+  deleteFixedCost: (id: string) => Promise<void>
+
+  addIncome:    (data: PfRecurringIncomeInput) => Promise<void>
+  updateIncome: (id: string, data: Partial<PfRecurringIncomeInput>) => Promise<void>
+  deleteIncome: (id: string) => Promise<void>
+
+  addEstimate:    (data: PfVariableEstimateInput) => Promise<void>
+  updateEstimate: (id: string, data: Partial<PfVariableEstimateInput>) => Promise<void>
+  deleteEstimate: (id: string) => Promise<void>
 }
 
 const PersonalContext = createContext<PersonalContextValue | undefined>(undefined)
@@ -93,17 +121,25 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts]         = useState<PfAccount[]>([])
   const [categories, setCategories]     = useState<PfCategory[]>([])
   const [transactions, setTransactions] = useState<PfTransaction[]>([])
+  const [monthTransactions, setMonthTransactions] = useState<PfTransaction[]>([])
   const [batches, setBatches]           = useState<PfImportBatch[]>([])
+  const [fixedCosts, setFixedCosts]     = useState<PfFixedCost[]>([])
+  const [incomes, setIncomes]           = useState<PfRecurringIncome[]>([])
+  const [estimates, setEstimates]       = useState<PfVariableEstimate[]>([])
 
   const seeded = useRef(false)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
-    const [accRes, catRes, txRes, batchRes] = await Promise.all([
+    const [accRes, catRes, txRes, monthRes, batchRes, fixRes, incRes, estRes] = await Promise.all([
       personalService.fetchAccounts(),
       personalService.fetchCategories(),
       personalService.fetchTransactions(),
+      personalService.fetchTransactionsForMonth(currentMonth()),
       personalService.fetchImportBatches(),
+      personalService.fetchFixedCosts(),
+      personalService.fetchRecurringIncome(),
+      personalService.fetchVariableEstimates(),
     ])
 
     if (accRes.error) dbErr('Konten konnten nicht geladen werden.')
@@ -112,7 +148,18 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
     if (txRes.error) dbErr('Umsätze konnten nicht geladen werden.')
     else setTransactions((txRes.data ?? []) as PfTransaction[])
 
+    if (!monthRes.error) setMonthTransactions((monthRes.data ?? []) as PfTransaction[])
+
     if (!batchRes.error) setBatches((batchRes.data ?? []) as PfImportBatch[])
+
+    if (fixRes.error) dbErr('Fixkosten konnten nicht geladen werden.')
+    else setFixedCosts((fixRes.data ?? []) as PfFixedCost[])
+
+    if (incRes.error) dbErr('Einnahmen konnten nicht geladen werden.')
+    else setIncomes((incRes.data ?? []) as PfRecurringIncome[])
+
+    if (estRes.error) dbErr('Schätzposten konnten nicht geladen werden.')
+    else setEstimates((estRes.data ?? []) as PfVariableEstimate[])
 
     if (catRes.error) {
       dbErr('Kategorien konnten nicht geladen werden.')
@@ -163,9 +210,19 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
         else setCategories((a) => upsert(a, p.new as PfCategory).sort(byName))
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: TABLE.PF_TRANSACTIONS }, (p) => {
-        if (p.eventType === 'DELETE')
-          setTransactions((a) => removeById(a, (p.old as PfTransaction).id))
-        else setTransactions((a) => upsert(a, p.new as PfTransaction).sort(byDateDesc))
+        if (p.eventType === 'DELETE') {
+          const id = (p.old as PfTransaction).id
+          setTransactions((a) => removeById(a, id))
+          setMonthTransactions((a) => removeById(a, id))
+          return
+        }
+        const row = p.new as PfTransaction
+        setTransactions((a) => upsert(a, row).sort(byDateDesc))
+        // Nur aufnehmen, wenn die Buchung in den laufenden Monat faellt;
+        // wandert sie beim Bearbeiten hinaus, wieder entfernen.
+        setMonthTransactions((a) =>
+          row.date.startsWith(currentMonth()) ? upsert(a, row).sort(byDateDesc) : removeById(a, row.id),
+        )
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: TABLE.PF_IMPORT_BATCHES }, (p) => {
         if (p.eventType === 'DELETE')
@@ -176,6 +233,18 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
               y.imported_at.localeCompare(x.imported_at),
             ),
           )
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: TABLE.PF_FIXED_COSTS }, (p) => {
+        if (p.eventType === 'DELETE') setFixedCosts((a) => removeById(a, (p.old as PfFixedCost).id))
+        else setFixedCosts((a) => upsert(a, p.new as PfFixedCost).sort(byName))
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: TABLE.PF_RECURRING_INCOME }, (p) => {
+        if (p.eventType === 'DELETE') setIncomes((a) => removeById(a, (p.old as PfRecurringIncome).id))
+        else setIncomes((a) => upsert(a, p.new as PfRecurringIncome).sort(byName))
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: TABLE.PF_VARIABLE_ESTIMATES }, (p) => {
+        if (p.eventType === 'DELETE') setEstimates((a) => removeById(a, (p.old as PfVariableEstimate).id))
+        else setEstimates((a) => upsert(a, p.new as PfVariableEstimate))
       })
       .subscribe()
 
@@ -233,8 +302,11 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
       dbErr('Umsatz konnte nicht gespeichert werden.')
       return null
     }
-    setTransactions((a) => upsert(a, row as PfTransaction).sort(byDateDesc))
-    return row as PfTransaction
+    const created = row as PfTransaction
+    setTransactions((a) => upsert(a, created).sort(byDateDesc))
+    if (created.date.startsWith(currentMonth()))
+      setMonthTransactions((a) => upsert(a, created).sort(byDateDesc))
+    return created
   }, [])
 
   const updateTransaction = useCallback(
@@ -247,8 +319,12 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
 
   const deleteTransaction = useCallback(async (id: string) => {
     const { error } = await personalService.deleteTransaction(id)
-    if (error) dbErr('Umsatz konnte nicht gelöscht werden.')
-    else setTransactions((a) => removeById(a, id))
+    if (error) {
+      dbErr('Umsatz konnte nicht gelöscht werden.')
+      return
+    }
+    setTransactions((a) => removeById(a, id))
+    setMonthTransactions((a) => removeById(a, id))
   }, [])
 
   /**
@@ -295,11 +371,20 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
       }
 
       if (inserted) {
+        const rows = inserted as PfTransaction[]
         setTransactions((a) => {
           let next = a
-          for (const row of inserted as PfTransaction[]) next = upsert(next, row)
+          for (const row of rows) next = upsert(next, row)
           return next.sort(byDateDesc)
         })
+        const thisMonth = rows.filter((r) => r.date.startsWith(currentMonth()))
+        if (thisMonth.length > 0) {
+          setMonthTransactions((a) => {
+            let next = a
+            for (const row of thisMonth) next = upsert(next, row)
+            return next.sort(byDateDesc)
+          })
+        }
       }
       setBatches((a) => upsert(a, batch as PfImportBatch))
       return batch as PfImportBatch
@@ -315,7 +400,66 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
     }
     // Cascade in der DB entfernt die Zeilen; lokal nachziehen.
     setTransactions((a) => a.filter((t) => t.import_batch_id !== batchId))
+    setMonthTransactions((a) => a.filter((t) => t.import_batch_id !== batchId))
     setBatches((a) => removeById(a, batchId))
+  }, [])
+
+  // ── Planungs-Ebene ────────────────────────────────────────────────────────
+  // Realtime traegt die Aenderungen nach; der lokale Upsert haelt die Liste
+  // sofort aktuell, damit die Prognose ohne Verzoegerung stimmt.
+
+  const addFixedCost = useCallback(async (data: PfFixedCostInput) => {
+    const { data: row, error } = await personalService.addFixedCost(data)
+    if (error) dbErr('Fixkosten konnten nicht angelegt werden.')
+    else setFixedCosts((a) => upsert(a, row as PfFixedCost).sort(byName))
+  }, [])
+
+  const updateFixedCost = useCallback(async (id: string, data: Partial<PfFixedCostInput>) => {
+    const { error } = await personalService.updateFixedCost(id, data)
+    if (error) dbErr('Fixkosten konnten nicht geändert werden.')
+    else setFixedCosts((a) => a.map((f) => (f.id === id ? { ...f, ...data } : f)).sort(byName))
+  }, [])
+
+  const deleteFixedCost = useCallback(async (id: string) => {
+    const { error } = await personalService.deleteFixedCost(id)
+    if (error) dbErr('Fixkosten konnten nicht gelöscht werden.')
+    else setFixedCosts((a) => removeById(a, id))
+  }, [])
+
+  const addIncome = useCallback(async (data: PfRecurringIncomeInput) => {
+    const { data: row, error } = await personalService.addRecurringIncome(data)
+    if (error) dbErr('Einnahme konnte nicht angelegt werden.')
+    else setIncomes((a) => upsert(a, row as PfRecurringIncome).sort(byName))
+  }, [])
+
+  const updateIncome = useCallback(async (id: string, data: Partial<PfRecurringIncomeInput>) => {
+    const { error } = await personalService.updateRecurringIncome(id, data)
+    if (error) dbErr('Einnahme konnte nicht geändert werden.')
+    else setIncomes((a) => a.map((i) => (i.id === id ? { ...i, ...data } : i)).sort(byName))
+  }, [])
+
+  const deleteIncome = useCallback(async (id: string) => {
+    const { error } = await personalService.deleteRecurringIncome(id)
+    if (error) dbErr('Einnahme konnte nicht gelöscht werden.')
+    else setIncomes((a) => removeById(a, id))
+  }, [])
+
+  const addEstimate = useCallback(async (data: PfVariableEstimateInput) => {
+    const { data: row, error } = await personalService.addVariableEstimate(data)
+    if (error) dbErr('Schätzposten konnte nicht angelegt werden.')
+    else setEstimates((a) => upsert(a, row as PfVariableEstimate))
+  }, [])
+
+  const updateEstimate = useCallback(async (id: string, data: Partial<PfVariableEstimateInput>) => {
+    const { error } = await personalService.updateVariableEstimate(id, data)
+    if (error) dbErr('Schätzposten konnte nicht geändert werden.')
+    else setEstimates((a) => a.map((e) => (e.id === id ? { ...e, ...data } : e)))
+  }, [])
+
+  const deleteEstimate = useCallback(async (id: string) => {
+    const { error } = await personalService.deleteVariableEstimate(id)
+    if (error) dbErr('Schätzposten konnte nicht gelöscht werden.')
+    else setEstimates((a) => removeById(a, id))
   }, [])
 
   const value: PersonalContextValue = {
@@ -323,7 +467,11 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
     accounts,
     categories,
     transactions,
+    monthTransactions,
     batches,
+    fixedCosts,
+    incomes,
+    estimates,
     addAccount,
     updateAccount,
     deleteAccount,
@@ -335,6 +483,15 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
     deleteTransaction,
     importRows,
     undoImport,
+    addFixedCost,
+    updateFixedCost,
+    deleteFixedCost,
+    addIncome,
+    updateIncome,
+    deleteIncome,
+    addEstimate,
+    updateEstimate,
+    deleteEstimate,
   }
 
   return <PersonalContext.Provider value={value}>{children}</PersonalContext.Provider>
