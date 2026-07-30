@@ -452,6 +452,104 @@ create table if not exists public.pf_cash_locations (
 create index if not exists pf_cash_locations_owner_idx
   on public.pf_cash_locations(owner_id, account_id, position);
 
+-- ---------------------------------------------------------------------------
+-- 9. Spar-Kaskade, Toepfe, Schulden (Phase 3)
+--
+--    Die Kaskade verteilt das prognostizierte Restgeld eines Monats der Reihe
+--    nach auf Stufen: erst die Pflichten, dann die Ruecklagen, dann der Rest.
+--    Was eine Stufe nicht mehr bekommt, weil das Geld vorher aufgebraucht war,
+--    bleibt sichtbar leer — die Kaskade beschoenigt nichts.
+--
+--    WICHTIG zur Abgrenzung: Fixkosten und die variable Schaetzung sind hier
+--    KEINE Stufen. Sie sind bereits vom Restgeld abgezogen (siehe
+--    lib/forecast.ts), ein zweites Mal abzuziehen waere Doppelzaehlung.
+-- ---------------------------------------------------------------------------
+
+-- Toepfe: Ruecklagen mit Ziel und Befuellreihenfolge.
+--
+-- current_amount ist wie beim Bargeld ein selbst gesetzter Stand. Ein Topf auf
+-- dem Tagesgeldkonto hat keine eigene Buchungshistorie — man schaut nach und
+-- traegt ein.
+create table if not exists public.pf_pots (
+  id             uuid primary key default gen_random_uuid(),
+  owner_id       uuid not null references auth.users(id) on delete cascade default auth.uid(),
+  name           text not null,
+  /** Zielbetrag; null = ohne Ziel, nimmt auf was kommt. */
+  target_amount  numeric(12,2) check (target_amount is null or target_amount >= 0),
+  current_amount numeric(12,2) not null default 0 check (current_amount >= 0),
+  /** Hoechstens so viel je Monat hineinfuellen; null = kein Deckel. */
+  monthly_cap    numeric(12,2) check (monthly_cap is null or monthly_cap >= 0),
+  /** Kleiner = zuerst befuellen. */
+  priority       double precision not null default 0,
+  account_id     uuid,
+  active         boolean not null default true,
+  created_at     timestamptz not null default now(),
+
+  constraint pf_pots_account_fk
+    foreign key (owner_id, account_id)
+    references public.pf_accounts(owner_id, id)
+    on delete set null (account_id)
+);
+
+create index if not exists pf_pots_owner_idx on public.pf_pots(owner_id, priority);
+
+-- Schulden bei Bekannten. Getilgt wird ueber die Kaskadenstufe 'debts'.
+--
+-- Bewusst zwei Felder statt eines Restbetrags: der Ausgangsbetrag bleibt
+-- stehen, damit der Fortschritt ("1.240 von 3.000 getilgt") ueberhaupt
+-- darstellbar ist. Ein blosser Restbetrag verliert diese Bezugsgroesse.
+create table if not exists public.pf_debts (
+  id             uuid primary key default gen_random_uuid(),
+  owner_id       uuid not null references auth.users(id) on delete cascade default auth.uid(),
+  creditor       text not null,
+  initial_amount numeric(12,2) not null check (initial_amount >= 0),
+  paid_amount    numeric(12,2) not null default 0 check (paid_amount >= 0),
+  /** Wunschrate je Monat; null = nimmt, was die Kaskade uebrig laesst. */
+  monthly_rate   numeric(12,2) check (monthly_rate is null or monthly_rate >= 0),
+  priority       double precision not null default 0,
+  note           text not null default '',
+  active         boolean not null default true,
+  created_at     timestamptz not null default now(),
+
+  -- Mehr getilgt als aufgenommen ergibt keinen Sinn und wuerde jeden
+  -- Fortschrittsbalken ueber 100 Prozent treiben.
+  constraint pf_debts_paid_not_over check (paid_amount <= initial_amount)
+);
+
+create index if not exists pf_debts_owner_idx on public.pf_debts(owner_id, priority);
+
+-- Die Stufen der Kaskade, in Reihenfolge.
+--
+--   fixed   — ein fester Betrag (z. B. Gemeinsam-Pauschale)
+--   percent — ein Anteil des ANFAENGLICHEN Restgelds, nicht des Rests an
+--             dieser Stelle; sonst haengt die Altersvorsorge davon ab, wie
+--             viel die Stufen davor zufaellig verbraucht haben
+--   debts   — verteilt auf pf_debts nach priority
+--   pots    — verteilt auf pf_pots nach priority
+--   rest    — alles, was uebrig ist (Auffangstufe, sinnvollerweise zuletzt)
+create table if not exists public.pf_allocation_steps (
+  id         uuid primary key default gen_random_uuid(),
+  owner_id   uuid not null references auth.users(id) on delete cascade default auth.uid(),
+  name       text not null,
+  kind       text not null check (kind in ('fixed','percent','debts','pots','rest')),
+  amount     numeric(12,2) check (amount  is null or amount >= 0),
+  percent    numeric(5,2)  check (percent is null or (percent >= 0 and percent <= 100)),
+  position   double precision not null default 0,
+  active     boolean not null default true,
+  created_at timestamptz not null default now(),
+
+  -- Jede Art braucht genau das Feld, das zu ihr gehoert. Ohne das koennte eine
+  -- 'fixed'-Stufe ohne Betrag dastehen und stillschweigend 0 verteilen.
+  constraint pf_allocation_steps_shape check (
+    (kind = 'fixed'   and amount  is not null and percent is null) or
+    (kind = 'percent' and percent is not null and amount  is null) or
+    (kind in ('debts','pots','rest') and amount is null and percent is null)
+  )
+);
+
+create index if not exists pf_allocation_steps_owner_idx
+  on public.pf_allocation_steps(owner_id, position);
+
 -- ============================================================================
 -- ROW LEVEL SECURITY — die eigentliche Isolation
 -- ============================================================================
@@ -464,6 +562,10 @@ alter table public.pf_recurring_income   enable row level security;
 alter table public.pf_variable_estimates enable row level security;
 alter table public.pf_monthly_plan       enable row level security;
 alter table public.pf_cash_locations     enable row level security;
+alter table public.pf_pots               enable row level security;
+alter table public.pf_debts              enable row level security;
+alter table public.pf_allocation_steps   enable row level security;
+alter table public.pf_pots               enable row level security;
 
 do $$
 declare
@@ -471,7 +573,7 @@ declare
 begin
   foreach t in array array['pf_accounts','pf_categories','pf_import_batches','pf_transactions',
                         'pf_fixed_costs','pf_recurring_income','pf_variable_estimates','pf_monthly_plan',
-                        'pf_cash_locations']
+                        'pf_cash_locations','pf_pots','pf_debts','pf_allocation_steps']
   loop
     execute format('drop policy if exists "owner_only" on public.%I;', t);
     execute format($f$
@@ -493,7 +595,7 @@ declare
 begin
   foreach t in array array['pf_accounts','pf_categories','pf_import_batches','pf_transactions',
                         'pf_fixed_costs','pf_recurring_income','pf_variable_estimates','pf_monthly_plan',
-                        'pf_cash_locations']
+                        'pf_cash_locations','pf_pots','pf_debts','pf_allocation_steps']
   loop
     begin
       execute format('alter publication supabase_realtime add table public.%I;', t);
@@ -512,3 +614,6 @@ alter table public.pf_recurring_income   replica identity full;
 alter table public.pf_variable_estimates replica identity full;
 alter table public.pf_monthly_plan       replica identity full;
 alter table public.pf_cash_locations     replica identity full;
+alter table public.pf_pots               replica identity full;
+alter table public.pf_debts              replica identity full;
+alter table public.pf_allocation_steps   replica identity full;
