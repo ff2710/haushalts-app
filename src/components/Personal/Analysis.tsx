@@ -24,6 +24,7 @@ import {
 import SankeyChart from './SankeyChart'
 import DonutChart, { type DonutSlice } from './DonutChart'
 import BookingsSheet from './BookingsSheet'
+import MoneySummary from './MoneySummary'
 import type { PfTransaction } from '../../types'
 
 // Analyse-Ansicht: wo ist das Geld hingeflossen. Bewusst nur Ist-Daten —
@@ -298,31 +299,8 @@ export default function Analysis() {
           })}
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-black/[0.06] pt-3">
-          <div>
-            <p className="text-[11px] text-zinc-400">Einnahmen</p>
-            <p className="text-[15px] font-semibold tabular-nums text-emerald-600">
-              {formatMoney(flow.income)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[11px] text-zinc-400">Ausgaben</p>
-            <p className="text-[15px] font-semibold tabular-nums text-zinc-900">
-              {formatMoney(flow.expense)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[11px] text-zinc-400">Saldo</p>
-            <p
-              className={
-                'text-[15px] font-semibold tabular-nums ' +
-                (flow.saldo >= 0 ? 'text-emerald-600' : 'text-red-500')
-              }
-            >
-              {flow.saldo >= 0 ? '+' : '−'}
-              {formatMoney(Math.abs(flow.saldo))}
-            </p>
-          </div>
+        <div className="mt-4 border-t border-black/[0.06] pt-3">
+          <MoneySummary flow={flow} />
         </div>
       </section>
 

@@ -7,6 +7,7 @@ import { formatMoney, todayISO } from '../../lib/utils'
 import { computeForecast } from '../../lib/forecast'
 import { budgetStatus } from '../../lib/budget'
 import { buildCashflow } from '../../lib/cashflow'
+import MoneySummary from './MoneySummary'
 
 // Übersicht des Persönlich-Bereichs: Monatsend-Prognose + Ist-Stand.
 // Die Prognose rechnet ausschließlich mit den Funktionen aus lib/forecast.ts,
@@ -183,68 +184,9 @@ export default function PersonalHome() {
           Tatsächlich diesen Monat
         </p>
 
-        <div className="mt-3 grid grid-cols-3 gap-3">
-          <div>
-            <p className="text-[12px] text-zinc-400">Einnahmen</p>
-            <p className="mt-0.5 text-[17px] font-semibold tabular-nums text-emerald-600">
-              {formatMoney(actual.income)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[12px] text-zinc-400">Ausgaben</p>
-            <p className="mt-0.5 text-[17px] font-semibold tabular-nums text-zinc-900">
-              {formatMoney(actual.expense)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[12px] text-zinc-400">Saldo</p>
-            <p
-              className={
-                'mt-0.5 text-[17px] font-semibold tabular-nums ' +
-                (actual.saldo >= 0 ? 'text-emerald-600' : 'text-red-500')
-              }
-            >
-              {actual.saldo >= 0 ? '+' : '−'}
-              {formatMoney(Math.abs(actual.saldo))}
-            </p>
-          </div>
+        <div className="mt-3">
+          <MoneySummary flow={actual} hint />
         </div>
-
-        {/* Sparen steht bewusst etwas abseits: es ist keine vierte Zahl derselben
-            Art, sondern die Folge aus den dreien darüber. */}
-        <div className="mt-4 flex items-center gap-4 rounded-2xl bg-zinc-50 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[12px] text-zinc-400">
-              {actual.saved >= 0 ? 'Gespart' : 'Entspart'}
-            </p>
-            <p
-              className={
-                'mt-0.5 text-[17px] font-semibold tabular-nums ' +
-                (actual.saved >= 0 ? 'text-zinc-900' : 'text-red-500')
-              }
-            >
-              {formatMoney(Math.abs(actual.saved))}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-[12px] text-zinc-400">Sparquote</p>
-            <p
-              className={
-                'mt-0.5 text-[17px] font-semibold tabular-nums ' +
-                (actual.savingsRate >= 0 ? 'text-zinc-900' : 'text-red-500')
-              }
-            >
-              {actual.income > 0
-                ? `${(actual.savingsRate * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`
-                : '–'}
-            </p>
-          </div>
-        </div>
-        <p className="mt-1.5 px-1 text-[11px] leading-snug text-zinc-400">
-          {actual.savedDeliberate > 0
-            ? `Übriggebliebenes plus ${formatMoney(actual.savedDeliberate)}, die gezielt angelegt wurden.`
-            : 'Was am Monatsende übrig blieb. Markierst du eine Kategorie im Editor als „Sparen", zählt sie hier mit statt als Ausgabe.'}
-        </p>
       </section>
 
       <section className="grid grid-cols-2 gap-3">
