@@ -70,19 +70,26 @@ export const PF_DEFAULT_CATEGORIES = [
 /** Auswahlfarben fuer HAUPTkategorien. Unterkategorien bekommen keine eigene
  *  Farbe, sondern eine Abstufung der Elternfarbe (src/lib/categoryColors.ts) —
  *  sonst waere im Sankey nicht mehr zu sehen, was zu wem gehoert.
- *  Gut unterscheidbare Farbtoene, bewusst in gleicher Helligkeit gehalten,
- *  damit die abgeleiteten Stufen darueber noch Luft nach oben haben. */
+ *  Die Farbtoene liegen mindestens 30 Grad auseinander. Das ist der
+ *  entscheidende Abstand, nicht die Helligkeit: die Sankey-Baender werden mit
+ *  38 Prozent Deckkraft gezeichnet, und dabei verwaschen zwei nah beieinander
+ *  liegende Toene zur selben Farbe, egal wie verschieden hell sie waren.
+ *  Vorher standen hier Hellblau (199) und Blau (217) nebeneinander — im
+ *  Diagramm nicht auseinanderzuhalten.
+ *
+ *  Alle in aehnlicher Helligkeit gehalten, damit die abgeleiteten Stufen der
+ *  Unterkategorien darueber noch Luft nach oben haben. */
 export const PF_CATEGORY_COLORS = [
-  '#ef4444', // Rot
-  '#f97316', // Orange
-  '#eab308', // Gelb
-  '#16a34a', // Grün
-  '#0ea5e9', // Hellblau
-  '#3b82f6', // Blau
-  '#8b5cf6', // Violett
-  '#ec4899', // Pink
-  '#14b8a6', // Türkis
-  '#64748b', // Grau
+  '#ef4444', // Rot        (Farbton   0)
+  '#f97316', // Orange     (Farbton  25)
+  '#eab308', // Gelb       (Farbton  46)
+  '#84cc16', // Limette    (Farbton  84)
+  '#16a34a', // Grün       (Farbton 142)
+  '#14b8a6', // Türkis     (Farbton 173)
+  '#3b82f6', // Blau       (Farbton 217)
+  '#8b5cf6', // Violett    (Farbton 258)
+  '#ec4899', // Pink       (Farbton 330)
+  '#64748b', // Grau       (neutral)
 ] as const
 
 export const STORAGE_BUCKET = {
