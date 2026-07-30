@@ -474,12 +474,14 @@ create table if not exists public.pf_pots (
   id             uuid primary key default gen_random_uuid(),
   owner_id       uuid not null references auth.users(id) on delete cascade default auth.uid(),
   name           text not null,
-  /** Zielbetrag; null = ohne Ziel, nimmt auf was kommt. */
-  target_amount  numeric(12,2) check (target_amount is null or target_amount >= 0),
+  -- Zielbetrag; null = ohne Ziel, nimmt auf was kommt. Wenn gesetzt, dann
+  -- groesser als null: ein Ziel von 0 waere sofort erreicht und der
+  -- Fortschrittsbalken darueber eine Division durch null.
+  target_amount  numeric(12,2) check (target_amount is null or target_amount > 0),
   current_amount numeric(12,2) not null default 0 check (current_amount >= 0),
-  /** Hoechstens so viel je Monat hineinfuellen; null = kein Deckel. */
+  -- Hoechstens so viel je Monat hineinfuellen; null = kein Deckel.
   monthly_cap    numeric(12,2) check (monthly_cap is null or monthly_cap >= 0),
-  /** Kleiner = zuerst befuellen. */
+  -- Kleiner = zuerst befuellen.
   priority       double precision not null default 0,
   account_id     uuid,
   active         boolean not null default true,
@@ -502,9 +504,11 @@ create table if not exists public.pf_debts (
   id             uuid primary key default gen_random_uuid(),
   owner_id       uuid not null references auth.users(id) on delete cascade default auth.uid(),
   creditor       text not null,
-  initial_amount numeric(12,2) not null check (initial_amount >= 0),
+  -- Groesser als null: der Ausgangsbetrag ist die Bezugsgroesse jedes
+  -- Fortschrittsbalkens ("1.240 von 3.000"), und durch null teilt man nicht.
+  initial_amount numeric(12,2) not null check (initial_amount > 0),
   paid_amount    numeric(12,2) not null default 0 check (paid_amount >= 0),
-  /** Wunschrate je Monat; null = nimmt, was die Kaskade uebrig laesst. */
+  -- Wunschrate je Monat; null = nimmt, was die Kaskade uebrig laesst.
   monthly_rate   numeric(12,2) check (monthly_rate is null or monthly_rate >= 0),
   priority       double precision not null default 0,
   note           text not null default '',
@@ -527,6 +531,14 @@ create index if not exists pf_debts_owner_idx on public.pf_debts(owner_id, prior
 --   debts   — verteilt auf pf_debts nach priority
 --   pots    — verteilt auf pf_pots nach priority
 --   rest    — alles, was uebrig ist (Auffangstufe, sinnvollerweise zuletzt)
+--
+-- Mehrere Stufen derselben Art sind erlaubt und eindeutig: die Engine merkt
+-- sich innerhalb eines Durchlaufs, was ein Topf bzw. eine Schuld schon bekommen
+-- hat (siehe src/lib/cascade.ts). Eine zweite 'pots'-Stufe findet deshalb nur
+-- noch, was die erste offen gelassen hat, statt dieselbe Luecke ein zweites Mal
+-- zu fuellen. Gegen Gleichstand bei position/priority sortiert die Engine
+-- zusaetzlich nach Name bzw. id, damit die Reihenfolge zwischen zwei
+-- Durchlaeufen nicht zufaellig kippt.
 create table if not exists public.pf_allocation_steps (
   id         uuid primary key default gen_random_uuid(),
   owner_id   uuid not null references auth.users(id) on delete cascade default auth.uid(),
