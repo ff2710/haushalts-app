@@ -50,7 +50,7 @@ export default function MoneySummary({ flow, hint = false }: Props) {
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-4 rounded-2xl bg-zinc-50 px-4 py-3">
+      <div className="mt-4 flex items-center gap-4 rounded-2xl bg-zinc-50 px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="text-[12px] text-zinc-400">{flow.saved >= 0 ? 'Gespart' : 'Entspart'}</p>
           <p
