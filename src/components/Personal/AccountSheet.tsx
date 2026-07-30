@@ -77,11 +77,17 @@ export default function AccountSheet({ open, onClose, account }: Props) {
   }, [open, account, savedLocations])
 
   const isCash = type === 'bar'
+  /** Genau ein Bargeld-Konto je Person (per Teil-Unique-Index gesichert).
+   *  Beim Anlegen darf 'bar' daher nicht waehlbar sein, wenn es schon eines
+   *  gibt — sonst laeuft man in einen Datenbankfehler. */
+  const cashExists = accounts.some((a) => a.type === 'bar' && a.id !== account?.id)
   const num = (raw: string) => Math.abs(parseAmount(raw) ?? 0)
   const locationTotal = locations.reduce((s, l) => s + num(l.amount), 0)
-  /** Letztes Bargeld-Konto: nicht löschbar, es soll immer eines geben. */
-  const isLastCash =
-    !!account && account.type === 'bar' && accounts.filter((a) => a.type === 'bar').length === 1
+  /** Das Bargeld-Konto: nicht löschbar und nicht umwidmbar, es soll immer
+   *  eines geben. Geprüft wird die GESPEICHERTE Art — sonst könnte man es
+   *  erst auf „Girokonto" umstellen und danach löschen, und der Bestand wäre
+   *  weg, während beim nächsten Laden ein leeres neues entsteht. */
+  const isLastCash = !!account && account.type === 'bar'
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -92,6 +98,29 @@ export default function AccountSheet({ open, onClose, account }: Props) {
     // Sind Orte im Spiel, gilt deren Summe — stated_balance ruht dann.
     const stated = isCash && locations.length === 0 ? num(cashRaw) : null
 
+    // Orte abgleichen: entfernte loeschen, geaenderte aktualisieren, neue
+    // anlegen. Laeuft fuer bestehende UND neu angelegte Konten — beim
+    // Neuanlegen fehlte das, wodurch gleich mitgetippte Orte still verfielen.
+    const syncLocations = async (accountId: string) => {
+      const keptIds = new Set(locations.filter((l) => l.id).map((l) => l.id as string))
+      for (const saved of savedLocations) {
+        if (!keptIds.has(saved.id)) await deleteCashLocation(saved.id)
+      }
+      for (const [i, draft] of locations.entries()) {
+        const amount = num(draft.amount)
+        const label = draft.name.trim() || `Ort ${i + 1}`
+        if (!draft.id) {
+          await addCashLocation({ account_id: accountId, name: label, amount, position: i })
+          continue
+        }
+        const before = savedLocations.find((l) => l.id === draft.id)
+        if (!before) continue
+        if (before.name !== label || Number(before.amount) !== amount || before.position !== i) {
+          await updateCashLocation(draft.id, { name: label, amount, position: i })
+        }
+      }
+    }
+
     if (account) {
       await updateAccount(account.id, {
         name: trimmed,
@@ -101,32 +130,9 @@ export default function AccountSheet({ open, onClose, account }: Props) {
         stated_balance: stated,
         position: account.position,
       })
-
-      // Orte abgleichen: geänderte aktualisieren, neue anlegen, entfernte löschen.
-      const keptIds = new Set(locations.filter((l) => l.id).map((l) => l.id as string))
-      for (const saved of savedLocations) {
-        if (!keptIds.has(saved.id)) await deleteCashLocation(saved.id)
-      }
-      for (const [i, draft] of locations.entries()) {
-        const amount = num(draft.amount)
-        const label = draft.name.trim() || `Ort ${i + 1}`
-        if (!draft.id) {
-          await addCashLocation({
-            account_id: account.id,
-            name: label,
-            amount,
-            position: i,
-          })
-          continue
-        }
-        const before = savedLocations.find((l) => l.id === draft.id)
-        if (!before) continue
-        if (before.name !== label || Number(before.amount) !== amount || before.position !== i) {
-          await updateCashLocation(draft.id, { name: label, amount, position: i })
-        }
-      }
+      await syncLocations(account.id)
     } else {
-      await addAccount({
+      const created = await addAccount({
         name: trimmed,
         type,
         is_hub: isHub,
@@ -134,6 +140,13 @@ export default function AccountSheet({ open, onClose, account }: Props) {
         stated_balance: stated,
         position: accounts.length,
       })
+      // Ohne angelegtes Konto gibt es keine account_id fuer die Orte — dann
+      // bleibt das Sheet offen, damit die Eingaben nicht verfallen.
+      if (!created) {
+        setBusy(false)
+        return
+      }
+      if (locations.length > 0) await syncLocations(created.id)
     }
     setBusy(false)
     onClose()
@@ -168,19 +181,28 @@ export default function AccountSheet({ open, onClose, account }: Props) {
 
         <label className="mt-4 block text-[13px] font-medium text-zinc-500">Art</label>
         <div className="mt-1.5 flex flex-wrap gap-2">
-          {ACCOUNT_TYPES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setType(t.id)}
-              className={
-                'rounded-xl px-3 py-2 text-[13px] font-medium transition-colors duration-150 ' +
-                (type === t.id ? 'bg-brand-600 text-white' : 'bg-zinc-100 text-zinc-600')
-              }
-            >
-              {t.label}
-            </button>
-          ))}
+          {ACCOUNT_TYPES.map((t) => {
+            // Das Bargeld-Konto bleibt eines; ein zweites gibt es nicht.
+            const locked = t.id === 'bar' ? cashExists : isLastCash
+            return (
+              <button
+                key={t.id}
+                type="button"
+                disabled={locked}
+                onClick={() => setType(t.id)}
+                className={
+                  'rounded-xl px-3 py-2 text-[13px] font-medium transition-colors duration-150 ' +
+                  (type === t.id
+                    ? 'bg-brand-600 text-white'
+                    : locked
+                      ? 'bg-zinc-50 text-zinc-300'
+                      : 'bg-zinc-100 text-zinc-600')
+                }
+              >
+                {t.label}
+              </button>
+            )
+          })}
         </div>
 
         {/* ── Bargeld ───────────────────────────────────────────────────────
@@ -264,7 +286,18 @@ export default function AccountSheet({ open, onClose, account }: Props) {
                     <button
                       type="button"
                       aria-label={`Ort ${i + 1} entfernen`}
-                      onClick={() => setLocations((l) => l.filter((_, j) => j !== i))}
+                      onClick={() => {
+                        // Faellt der letzte Ort weg, uebernimmt das Einzelfeld
+                        // die bisherige Summe. Sonst stuende dort nichts und
+                        // Speichern setzte den Bestand still auf 0.
+                        const rest = locations.filter((_, j) => j !== i)
+                        if (rest.length === 0) {
+                          setCashRaw(
+                            String(locationTotal.toFixed(2)).replace('.', ','),
+                          )
+                        }
+                        setLocations(rest)
+                      }}
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors duration-150 active:bg-black/[0.06]"
                     >
                       <MinusCircleIcon size={18} />

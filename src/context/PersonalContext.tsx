@@ -193,8 +193,18 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
           stated_balance: 0,
           position: accs.length,
         })
-        if (row) setAccounts((a) => upsert(a, row as PfAccount).sort(byPosition))
-        else if (error) cashSeeded.current = false
+        if (row) {
+          setAccounts((a) => upsert(a, row as PfAccount).sort(byPosition))
+        } else if (error) {
+          // 23505 = der Teil-Unique-Index hat zugeschlagen: ein zweites Geraet
+          // war schneller. Kein Fehler fuer den Nutzer, Realtime liefert die
+          // Zeile gleich nach. Alles andere gehoert gemeldet, sonst merkt
+          // niemand, dass sein Bargeld-Konto fehlt.
+          if (error.code !== '23505') {
+            dbErr('Bargeld-Konto konnte nicht angelegt werden.')
+            cashSeeded.current = false
+          }
+        }
       }
     }
 

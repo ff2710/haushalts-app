@@ -410,6 +410,24 @@ create trigger pf_categories_two_levels
 alter table public.pf_accounts
   add column if not exists stated_balance numeric(12,2);
 
+-- Betraege sind auch hier immer positiv — als Zusage der Datenbank, nicht als
+-- Konvention des Frontends.
+do $$
+begin
+  alter table public.pf_accounts
+    add constraint pf_accounts_stated_balance_check
+    check (stated_balance is null or stated_balance >= 0);
+exception
+  when duplicate_object then null;
+end $$;
+
+-- Genau EIN Bargeld-Konto je Person, serverseitig. Die App stellt beim Laden
+-- sicher, dass eines existiert; ohne diesen Index koennten zwei gleichzeitig
+-- ladende Geraete beide eines anlegen. Gleiches Muster wie beim Hub-Konto.
+-- Wer sein Bargeld getrennt fuehren will, nutzt dafuer die Orte weiter unten.
+create unique index if not exists pf_accounts_one_cash_per_owner
+  on public.pf_accounts(owner_id) where type = 'bar';
+
 -- Optionale Aufteilung auf Orte ("Geldbeutel", "Schublade", "Urlaubskasse").
 --
 -- Entweder ODER, nie beides: sobald es Orte gibt, ist der Bargeld-Stand ihre
