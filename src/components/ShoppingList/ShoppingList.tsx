@@ -26,6 +26,7 @@ import ItemContextMenu, { type PartialInfo } from './ItemContextMenu'
 import SortableItem from './SortableItem'
 import UndoToast from '../ui/UndoToast'
 import { SkeletonBlock } from '../ui/Skeleton'
+import { AddRow } from '../ui/AddButton'
 import { PlusIcon, ChevronRightIcon, StoreIcon, TagIcon, GripIcon, CalendarIcon, NameSortIcon, GroupingIcon, SortingIcon } from '../ui/Icon'
 
 interface Group {
@@ -612,19 +613,18 @@ export default function ShoppingList() {
               </div>
             </motion.div>
           ) : (
-            <motion.button
+            <motion.div
               key="add-btn"
-              type="button"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              onClick={toggleAddGroup}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-zinc-200 py-3.5 text-[14px] font-medium text-zinc-400 transition-colors duration-150 hover:border-brand-300 hover:text-brand-500 active:opacity-70"
             >
-              <PlusIcon size={15} strokeWidth={2.5} />
-              {mode === 'store' ? 'Neuer Laden' : 'Neue Kategorie'}
-            </motion.button>
+              <AddRow
+                onClick={toggleAddGroup}
+                label={mode === 'store' ? 'Neuer Laden' : 'Neue Kategorie'}
+              />
+            </motion.div>
           )
         )}
       </AnimatePresence>

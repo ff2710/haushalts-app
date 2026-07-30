@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { usePersonal } from '../../context/PersonalContext'
 import { SkeletonBlock } from '../ui/Skeleton'
-import { ChevronRightIcon, PlusIcon } from '../ui/Icon'
+import { ChevronRightIcon } from '../ui/Icon'
+import AddButton from '../ui/AddButton'
 import { formatMoney } from '../../lib/utils'
 import AccountSheet, { ACCOUNT_TYPES } from './AccountSheet'
 import type { PfAccount } from '../../types'
@@ -62,6 +63,12 @@ export default function Accounts() {
         </div>
       ) : (
         <>
+          <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400">
+              Konten
+            </p>
+            <AddButton onClick={openNew} label="Konto hinzufügen" />
+          </div>
           <ul className="space-y-2">
             {accounts.map((acc) => (
               <li key={acc.id}>
@@ -93,14 +100,6 @@ export default function Accounts() {
               </li>
             ))}
           </ul>
-
-          <button
-            onClick={openNew}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-black/10 py-3.5 text-[14px] font-medium text-zinc-500 transition-colors duration-150 active:bg-black/[0.03]"
-          >
-            <PlusIcon size={16} />
-            Weiteres Konto
-          </button>
         </>
       )}
 

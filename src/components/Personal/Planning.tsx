@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { usePersonal } from '../../context/PersonalContext'
 import { SkeletonBlock } from '../ui/Skeleton'
-import { ChevronRightIcon, PlusIcon } from '../ui/Icon'
+import { ChevronRightIcon } from '../ui/Icon'
+import AddButton from '../ui/AddButton'
 import { formatMoney, todayISO } from '../../lib/utils'
 import { monthlyContribution, recurringAmountForMonth } from '../../lib/forecast'
 import { budgetStatus } from '../../lib/budget'
@@ -25,7 +26,15 @@ const cadenceLabel = (c: string) => CADENCES.find((x) => x.id === c)?.label ?? c
 const card   = 'overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-black/[0.05]'
 const rowCls = 'flex w-full items-center justify-between gap-3 px-4 py-[13px] text-left'
 const sep    = <div className="mx-4 h-px bg-zinc-100" />
-const sLabel = 'mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400'
+const sLabel = 'text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400'
+
+/** Abschnittskopf: Titel links, das Plus fuer diesen Abschnitt rechts. */
+const sectionHead = (title: string, add?: { label: string; onClick: () => void }) => (
+  <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
+    <p className={sLabel}>{title}</p>
+    {add && <AddButton onClick={add.onClick} label={add.label} />}
+  </div>
+)
 
 /** Planungs-Ebene: was jeden Monat fest rein- und rausgeht, plus Budgets.
  *  Speist die Prognose in der Übersicht. */
@@ -94,21 +103,17 @@ export default function Planning() {
     <div className="px-4 py-[13px] text-[14px] text-zinc-400">{text}</div>
   )
 
-  const addButton = (label: string, onClick: () => void) => (
-    <button
-      onClick={onClick}
-      className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-black/10 py-3 text-[14px] font-medium text-zinc-500 transition-colors duration-150 active:bg-black/[0.03]"
-    >
-      <PlusIcon size={16} />
-      {label}
-    </button>
-  )
-
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       {/* ── Regelmäßige Einnahmen ─────────────────────────────────────────── */}
       <section>
-        <p className={sLabel}>Regelmäßige Einnahmen</p>
+        {sectionHead('Regelmäßige Einnahmen', {
+          label: 'Einnahme hinzufügen',
+          onClick: () => {
+            setIncomeEdit(null)
+            setIncomeOpen(true)
+          },
+        })}
         <div className={card}>
           {incomes.length === 0
             ? emptyRow('Noch keine Einnahmen hinterlegt')
@@ -150,15 +155,17 @@ export default function Planning() {
                 )
               })}
         </div>
-        {addButton('Einnahme hinzufügen', () => {
-          setIncomeEdit(null)
-          setIncomeOpen(true)
-        })}
       </section>
 
       {/* ── Fixkosten ─────────────────────────────────────────────────────── */}
       <section>
-        <p className={sLabel}>Fixkosten</p>
+        {sectionHead('Fixkosten', {
+          label: 'Fixkosten hinzufügen',
+          onClick: () => {
+            setFixedEdit(null)
+            setFixedOpen(true)
+          },
+        })}
         <div className={card}>
           {fixedCosts.length === 0
             ? emptyRow('Noch keine Fixkosten hinterlegt')
@@ -204,15 +211,17 @@ export default function Planning() {
                 )
               })}
         </div>
-        {addButton('Fixkosten hinzufügen', () => {
-          setFixedEdit(null)
-          setFixedOpen(true)
-        })}
       </section>
 
       {/* ── Variable Schätzposten ─────────────────────────────────────────── */}
       <section>
-        <p className={sLabel}>Variable Schätzposten</p>
+        {sectionHead('Variable Schätzposten', {
+          label: 'Schätzposten hinzufügen',
+          onClick: () => {
+            setEstEdit(null)
+            setEstOpen(true)
+          },
+        })}
         <div className={card}>
           {estimates.length === 0
             ? emptyRow('Noch keine Schätzposten')
@@ -237,10 +246,6 @@ export default function Planning() {
                 </div>
               ))}
         </div>
-        {addButton('Schätzposten hinzufügen', () => {
-          setEstEdit(null)
-          setEstOpen(true)
-        })}
       </section>
 
       {/* ── Kategorien ────────────────────────────────────────────────────── */}
@@ -250,7 +255,10 @@ export default function Planning() {
         const rows = catRows[t]
         return (
           <section key={t}>
-            <p className={sLabel}>{t === 'expense' ? 'Ausgaben-Kategorien' : 'Einnahme-Kategorien'}</p>
+            {sectionHead(t === 'expense' ? 'Ausgaben-Kategorien' : 'Einnahme-Kategorien', {
+              label: t === 'expense' ? 'Ausgaben-Kategorie hinzufügen' : 'Einnahme-Kategorie hinzufügen',
+              onClick: () => openCategory(null, t, null),
+            })}
             <div className={card}>
               {rows.length === 0
                 ? emptyRow('Noch keine Kategorien')
@@ -291,29 +299,25 @@ export default function Planning() {
                         </button>
                         {/* Nur an Hauptkategorien: eine Ebene tiefer geht nicht. */}
                         {depth === 0 && (
-                          <button
-                            onClick={() => openCategory(null, t, c.id)}
-                            aria-label={`Unterkategorie unter ${c.name} anlegen`}
-                            className="mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors duration-150 active:bg-black/[0.06]"
-                          >
-                            <PlusIcon size={16} />
-                          </button>
+                          <span className="mr-1.5">
+                            <AddButton
+                              subtle
+                              onClick={() => openCategory(null, t, c.id)}
+                              label={`Unterkategorie unter ${c.name} anlegen`}
+                            />
+                          </span>
                         )}
                       </div>
                     </div>
                   ))}
             </div>
-            {addButton(
-              t === 'expense' ? 'Ausgaben-Kategorie hinzufügen' : 'Einnahme-Kategorie hinzufügen',
-              () => openCategory(null, t, null),
-            )}
           </section>
         )
       })}
 
       {/* ── Budgets ───────────────────────────────────────────────────────── */}
       <section>
-        <p className={sLabel}>Budgets je Kategorie</p>
+        {sectionHead('Budgets je Kategorie')}
         <div className={card}>
           {budgetRows.length === 0
             ? emptyRow('Keine Ausgaben-Kategorien vorhanden')
