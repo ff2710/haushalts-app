@@ -22,6 +22,7 @@ import Modal from './components/ui/Modal'
 import {
   BasketIcon,
   ChartIcon,
+  DashboardIcon,
   BalanceArrowsIcon,
   GearIcon,
   HouseIcon,
@@ -29,7 +30,6 @@ import {
   PersonIcon,
   EmbraceIcon,
   TransactionsIcon,
-  FlowIcon,
   WalletIcon,
   CalendarIcon,
 } from './components/ui/Icon'
@@ -57,8 +57,8 @@ const TABS: Record<Area, TabDef[]> = {
     { id: 'finance',  label: 'Split',    Icon: BalanceArrowsIcon },
   ],
   personal: [
-    { id: 'overview',     label: 'Übersicht', Icon: ChartIcon },
-    { id: 'analysis',     label: 'Analyse',   Icon: FlowIcon },
+    { id: 'overview',     label: 'Übersicht', Icon: DashboardIcon },
+    { id: 'analysis',     label: 'Analyse',   Icon: ChartIcon },
     { id: 'transactions', label: 'Umsätze',   Icon: TransactionsIcon },
     { id: 'planning',     label: 'Planung',   Icon: CalendarIcon },
     { id: 'accounts',     label: 'Konten',    Icon: WalletIcon },

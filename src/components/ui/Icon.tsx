@@ -291,7 +291,21 @@ export function CloseIcon(p: IconProps) {
 // Bewusst eigene Formen, die sich nicht mit den Gemeinsam-Icons (Korb, €)
 // überschneiden — damit auf einen Blick klar ist, in welcher Welt man ist.
 
-/** Übersicht: Balkendiagramm mit Achse. */
+/** Übersicht: Kachel-Raster, wie man es von Dashboards kennt. Bewusst die
+ *  einzige Form ohne Linienzug oder Rundung — dadurch auf einen Blick von
+ *  Korb, Pfeilen, Liste, Kalender und Geldbörse zu unterscheiden. */
+export function DashboardIcon(p: IconProps) {
+  return (
+    <IconBase {...p}>
+      <rect x="3.5" y="3.5" width="7.5" height="8.5" rx="1.5" />
+      <rect x="13" y="3.5" width="7.5" height="5" rx="1.5" />
+      <rect x="13" y="11.5" width="7.5" height="9" rx="1.5" />
+      <rect x="3.5" y="15" width="7.5" height="5.5" rx="1.5" />
+    </IconBase>
+  )
+}
+
+/** Analyse: Balkendiagramm mit Achse. */
 export function ChartIcon(p: IconProps) {
   return (
     <IconBase {...p}>
@@ -301,18 +315,6 @@ export function ChartIcon(p: IconProps) {
       <path d="M8.5 18.6V13.5" />
       <path d="M12.5 18.6V9.5" />
       <path d="M16.5 18.6V11.5" />
-    </IconBase>
-  )
-}
-
-/** Analyse: aufgefächerte Ströme — ein Zufluss, der sich aufteilt (Sankey). */
-export function FlowIcon(p: IconProps) {
-  return (
-    <IconBase {...p}>
-      <path d="M3 12h4" />
-      <path d="M7 12c4 0 3.5-6 8-6h6" />
-      <path d="M7 12c4 0 3.5 6 8 6h6" />
-      <path d="M7 12h14" />
     </IconBase>
   )
 }
