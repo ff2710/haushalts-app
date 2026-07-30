@@ -27,12 +27,15 @@ export default function AddButton({ onClick, label, subtle = false }: Props) {
       title={label}
       className={
         'flex shrink-0 items-center justify-center rounded-full transition-all duration-150 active:scale-90 ' +
+        // Grau statt Anthrazit: das Plus soll gefunden werden, aber nicht mit
+        // den echten Aktionsknoepfen der App um Aufmerksamkeit streiten.
+        //
         // Die zurueckhaltende Variante steht direkt neben dem Chevron der
         // Zeile. Ohne eigene Flaeche saehe sie wie ein zweites Zeichen derselben
         // Zeile aus statt wie ein eigener Knopf.
         (subtle
           ? 'h-8 w-8 bg-black/[0.04] text-zinc-500 active:bg-black/[0.09]'
-          : 'h-7 w-7 bg-brand-600 text-white')
+          : 'h-7 w-7 bg-zinc-200 text-zinc-600 active:bg-zinc-300')
       }
     >
       <PlusIcon size={subtle ? 16 : 15} strokeWidth={2.5} />
@@ -52,7 +55,7 @@ export function AddRow({ onClick, label }: { onClick: () => void; label: string 
       onClick={onClick}
       className="flex w-full items-center gap-2.5 rounded-2xl bg-white px-3.5 py-3 text-left shadow-card ring-1 ring-black/[0.05] transition-transform duration-150 active:scale-[0.99]"
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-zinc-600">
         <PlusIcon size={15} strokeWidth={2.5} />
       </span>
       <span className="text-[14px] font-medium text-zinc-600">{label}</span>

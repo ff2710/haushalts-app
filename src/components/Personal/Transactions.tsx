@@ -86,7 +86,8 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Liste */}
+      {/* Liste. Dichte bewusst hoch gehalten: hier scrollt man durch viele
+          Zeilen, und jeder Millimeter Rand kostet eine sichtbare Buchung. */}
       {transactions.length === 0 ? (
         <div className="mt-3 rounded-3xl border border-dashed border-black/10 bg-white/50 p-8 text-center">
           <p className="text-[15px] font-medium text-zinc-700">Noch keine Umsätze</p>
@@ -95,13 +96,13 @@ export default function Transactions() {
           </p>
         </div>
       ) : (
-        <div className="mt-4 space-y-4">
+        <div className="mt-3 space-y-2">
           {groups.map(([date, list]) => (
             <section key={date}>
-              <h3 className="mb-1.5 px-1 text-[12px] font-medium uppercase tracking-wide text-zinc-400">
+              <h3 className="mb-1 px-1 text-[12px] font-medium uppercase tracking-wide text-zinc-400">
                 {formatDate(date)}
               </h3>
-              <ul className="space-y-1.5">
+              <ul className="space-y-1">
                 {list.map((t) => {
                   const cat = catName(t.category_id)
                   return (
@@ -111,17 +112,17 @@ export default function Transactions() {
                           setEditing(t)
                           setSheetOpen(true)
                         }}
-                        className="flex w-full items-center gap-3 rounded-2xl bg-white p-3.5 text-left shadow-soft transition-transform duration-150 active:scale-[0.99]"
+                        className="flex w-full items-center gap-2.5 rounded-xl bg-white px-2.5 py-2 text-left shadow-soft transition-transform duration-150 active:scale-[0.99]"
                       >
                         <div
                           className={
-                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ' +
+                            'flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] ' +
                             (t.type === 'income'
                               ? 'bg-emerald-50 text-emerald-600'
                               : 'bg-brand-50 text-brand-600')
                           }
                         >
-                          <MoneyFlyIcon size={18} />
+                          <MoneyFlyIcon size={16} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[14px] font-medium text-zinc-900">
