@@ -4,7 +4,13 @@ import { TrashIcon } from '../ui/Icon'
 import { usePersonal } from '../../context/PersonalContext'
 import { PF_CATEGORY_COLORS } from '../../constants'
 import { categoryColorMap } from '../../lib/categoryColors'
-import type { PfCategory, PfCategoryType } from '../../types'
+import type { PfCategory, PfCategoryType, PfPlanningBucket } from '../../types'
+
+const BUCKETS: [PfPlanningBucket, string][] = [
+  ['fix', 'Fixkosten'],
+  ['freizeit', 'Freizeit'],
+  ['sparen', 'Sparen'],
+]
 
 interface Props {
   open: boolean
@@ -36,6 +42,7 @@ export default function CategorySheet({ open, onClose, category, type, parentId 
   const [name, setName]       = useState('')
   const [color, setColor]     = useState<string>(PF_CATEGORY_COLORS[0])
   const [parent, setParentId] = useState<string | null>(null)
+  const [bucket, setBucket]   = useState<PfPlanningBucket | null>(null)
   const [busy, setBusy]       = useState(false)
 
   // Beim Bearbeiten gilt die Art der Kategorie, beim Anlegen die des Abschnitts.
@@ -46,6 +53,7 @@ export default function CategorySheet({ open, onClose, category, type, parentId 
     setName(category?.name ?? '')
     setColor(category?.color ?? PF_CATEGORY_COLORS[0])
     setParentId(category ? category.parent_id : parentId)
+    setBucket(category?.planning_bucket ?? null)
     setBusy(false)
   }, [open, category, parentId])
 
@@ -112,6 +120,9 @@ export default function CategorySheet({ open, onClose, category, type, parentId 
       // (Elternteil geloescht) nicht farblos dasteht.
       color: parentCategory ? (derivedColor ?? parentCategory.color) : color,
       parent_id: parent,
+      // Der Topf haengt an der Hauptkategorie. Eine Unterkategorie erbt ihn
+      // ueber ihr Elternteil und traegt deshalb selbst keinen.
+      planning_bucket: parentCategory ? null : bucket,
       monthly_budget: category?.monthly_budget ?? null,
       warn_ratio: category?.warn_ratio ?? 0.8,
     }
@@ -176,6 +187,39 @@ export default function CategorySheet({ open, onClose, category, type, parentId 
             {parentCategory
               ? `Unter „${parentCategory.name}" gibt es diesen Namen schon.`
               : 'Diesen Namen gibt es als Hauptkategorie schon.'}
+          </p>
+        )}
+
+        {/* ── Planungs-Topf ────────────────────────────────────────────────
+            Die grobe Ebene ueber der Kategorie (50/30/20). Nur an
+            Hauptkategorien gepflegt — Unterkategorien erben ihn. */}
+        {effectiveType === 'expense' && !parentCategory && (
+          <>
+            <label className="mt-4 block text-[13px] font-medium text-zinc-500">
+              Planungs-Topf <span className="text-zinc-400">(optional)</span>
+            </label>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {BUCKETS.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setBucket(bucket === id ? null : id)}
+                  className={chip(bucket === id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[12px] leading-snug text-zinc-400">
+              {bucket === 'sparen'
+                ? 'Zählt in der Übersicht als gespartes Geld, nicht als Ausgabe.'
+                : 'Bestimmt später, in welchen der drei Töpfe (50/30/20) diese Ausgaben fallen.'}
+            </p>
+          </>
+        )}
+        {parentCategory && (
+          <p className="mt-4 rounded-2xl bg-zinc-50 px-4 py-3 text-[13px] leading-snug text-zinc-500">
+            Planungs-Topf und Art kommen von „{parentCategory.name}".
           </p>
         )}
 

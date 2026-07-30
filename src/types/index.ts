@@ -88,6 +88,9 @@ export type PfAccountType =
 
 export type PfCategoryType = 'income' | 'expense'
 
+/** Die drei groben Töpfe der 50/30/20-Planung. */
+export type PfPlanningBucket = 'fix' | 'freizeit' | 'sparen'
+
 export interface PfAccount {
   id: string
   owner_id: string
@@ -108,6 +111,9 @@ export interface PfCategory {
   /** Elternkategorie; null = Hauptkategorie. Genau zwei Ebenen — eine
    *  Unterkategorie kann selbst kein Elternteil sein (per Trigger gesichert). */
   parent_id: string | null
+  /** Planungs-Topf (50/30/20). Nur an Hauptkategorien gepflegt,
+   *  Unterkategorien erben ihn über ihr Elternteil. null = nicht zugeordnet. */
+  planning_bucket: PfPlanningBucket | null
   /** Monatsbudget der Kategorie; null = kein Budget gesetzt. */
   monthly_budget: number | null
   /** Ab welchem Anteil des Budgets gewarnt wird (0–1, Standard 0,8). */

@@ -307,6 +307,29 @@ create unique index if not exists pf_categories_owner_parent_name_type_key
 -- Hauptkategorien dank NULLS NOT DISTINCT deckungsgleich mit dem alten.
 drop index if exists public.pf_categories_owner_name_type_key;
 
+-- ---------------------------------------------------------------------------
+-- 7. Planungs-Topf (50/30/20)
+--
+--    Die dritte, groebste Ebene ueber der Hauptkategorie — aber KEIN zweiter
+--    Baum, sondern eine Spalte an der Kategorie. Damit gibt es genau eine
+--    Kette: Buchung -> Unterkategorie -> Hauptkategorie -> Topf. Jeder Euro
+--    zaehlt in jeder Ansicht genau einmal, und es gibt nichts abzugleichen.
+--
+--    Nur an HAUPTkategorien gepflegt; Unterkategorien erben ihn ueber ihr
+--    Elternteil, genau wie die Farbe. null = noch nicht zugeordnet.
+-- ---------------------------------------------------------------------------
+alter table public.pf_categories
+  add column if not exists planning_bucket text;
+
+do $$
+begin
+  alter table public.pf_categories
+    add constraint pf_categories_planning_bucket_check
+    check (planning_bucket is null or planning_bucket in ('fix','freizeit','sparen'));
+exception
+  when duplicate_object then null;
+end $$;
+
 -- Zwei-Ebenen-Regel + Typgleichheit. Laeuft als aufrufende Rolle (kein
 -- security definer), die Abfragen sehen also nur eigene Zeilen — genau richtig,
 -- denn Eltern und Kinder gehoeren per FK ohnehin derselben Person.
