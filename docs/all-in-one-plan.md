@@ -1,6 +1,6 @@
 # All-in-One Finanz- & Haushalts-App — Bauplan
 
-_Stand: 2026-07-28. Geplant in Cowork OS (Jarvis), gebaut in Claude Code in diesem Repo. Nach jedem Feature-Häppchen den globalen `code-reviewer`-Agent laufen lassen._
+_Stand: 2026-07-29. Geplant in Cowork OS (Jarvis), gebaut in Claude Code in diesem Repo. Nach jedem Feature-Häppchen den globalen `code-reviewer`-Agent laufen lassen. Aktueller Fortschritt steht nicht hier, sondern in `Cowork OS/Persönliche Finanzen/Finanztracker.md`._
 
 ## 1. Ziel & Entscheidung
 
@@ -44,8 +44,8 @@ Port + Erweiterung des Finanztrackers, alles `owner_id`-scoped:
 
 - `pf_accounts` — Konten: DKB Giro (Hub), Gemeinschaftskonto (Referenz/geteilt), Ayvens Tagesgeld, Kreditkarte, Extra-Tagesgeld (Jahresabos), Depot, Festgeld. Felder: `type`, `name`, `is_hub`, `is_shared_ref`.
 - `pf_transactions` — Umsätze. Betrag **immer positiv**, Richtung über `type` (`income`|`expense`). Verweis auf `pf_accounts` + Kategorie.
-- `pf_categories`, `pf_fixed_costs`, `pf_recurring_income`, `pf_variable_estimates`, `pf_monthly_plan` — Port aus Finanztracker.
-- `pf_budgets` — Monatsbudget je Kategorie + Warnschwelle.
+- `pf_categories`, `pf_fixed_costs`, `pf_recurring_income`, `pf_variable_estimates`, `pf_monthly_plan` — Port aus Finanztracker. `pf_categories` bekommt in Phase 2.5 zusätzlich `parent_id` (Unterkategorien, siehe dort).
+- ~~`pf_budgets`~~ — **verworfen in Phase 2.** Das Budget liegt bereits als `pf_categories.monthly_budget` im Port; eine zweite Tabelle wären zwei Quellen für denselben Wert. Die Warnschwelle sitzt stattdessen als `pf_categories.warn_ratio` an derselben Zeile.
 - `pf_pots` — Tagesgeld-Töpfe (Notgroschen, Urlaub, Gönnerreserve, Jahresabo, Festgeld), mit Zielbetrag + `priority` (Reihenfolge des Befüllens), Zuordnung zu einem `pf_accounts`.
 - `pf_allocation_steps` — die konfigurierbare Spar-Kaskade (geordnete Stufen, siehe §4 Phase 3).
 - `pf_debts` — Schulden bei Bekannten (Kaskadenstufe „Schuldentilgung").
@@ -70,12 +70,31 @@ _Verify:_ Umsätze erfassen/importieren; verdächtige Dubletten landen im Review
 `pf_fixed_costs`, `pf_recurring_income`, `pf_variable_estimates`, `pf_monthly_plan` portieren. Kategorie-Budgets + Warnungen (neu). Monatsend-Prognose-Dashboard.
 _Verify:_ Prognose deckt sich mit unabhängiger Nachrechnung (programmatisch prüfen).
 
+**Phase 2.5 — Analyse-Ansicht: Sankey + Donut (Unterkategorien)**
+Vorbild ist der Finanzfluss-Copilot-Cashflow-Analyzer (Referenz-Screenshots liegen bei Fidel). Bewusst **vor** Phase 3 eingeschoben: baut nur auf Daten, die seit Phase 1/2 schon da sind, ist also sofort nutzbar; die Schema-Änderung an `pf_categories` ist jetzt billiger als nachdem die Kaskade darauf aufsetzt; und der Sankey-Baustein wird in Phase 4 wiederverwendet.
+
+- **Schema:** `pf_categories.parent_id uuid references pf_categories(id)` — self-referencing, additiv. **Maximal 2 Ebenen** (Haupt- → Unterkategorie); per Check/Trigger absichern, dass eine Unterkategorie nicht selbst Elternteil wird. Ergibt im Sankey mit den Einnahme-Strömen 3 sichtbare Ausgabe-Ebenen (Einnahmen → Budget → Hauptkategorie → Unterkategorie), genau wie in der Referenz.
+- **Achtung, bestehender Index:** `pf_categories_owner_name_type_key` ist heute `(owner_id, name, type)`. Mit Unterkategorien muss derselbe Name unter verschiedenen Eltern erlaubt sein („Transport" unter Mobilität *und* unter Reisen). Index auf `(owner_id, parent_id, name, type)` erweitern — und dabei beachten, dass Postgres NULLs standardmäßig als verschieden behandelt: für Hauptkategorien (`parent_id is null`) sonst Duplikate möglich. Also `nulls not distinct` (PG 15+) oder Ausdrucks-Index über `coalesce(parent_id, ...)`.
+- **Farbsystem:** eine Basisfarbe je Hauptkategorie (steckt schon in `pf_categories.color`), Unterkategorien als abgestufte Helligkeits-/Sättigungsvarianten daraus abgeleitet — nicht frei wählbar, sonst zerfällt die visuelle Zuordnung. Ableitung deterministisch in einer Hilfsfunktion, nicht pro Komponente.
+- **Sankey:** Einnahmen-Ströme links → Budget-Knoten → Hauptkategorie → Unterkategorie. Hover hebt den Pfad hervor und dimmt den Rest (Referenz-Screenshot 3). Klick auf einen Knoten öffnet ein Seitenpanel mit den Transaktionen dieser (Unter-)Kategorie im gewählten Zeitraum (Screenshot 4) — dafür existiert mit `BottomSheet`/`Modal` schon Infrastruktur.
+- **Donut** darunter: Umschalter Ausgaben / Einnahmen / Unterkategorien, plus Kategorieliste mit Beträgen und Anzahl Buchungen daneben (Screenshot 5).
+- **€/%-Toggle** oben rechts, wirkt auf Sankey *und* Donut. Standard: €.
+- **Zeitraum:** Monat / Quartal / Jahr + Vor-/Zurück-Blättern, dazu Kopfzeile mit Einnahmen, Ausgaben, Saldo, Gespart, Sparquote (Screenshot 1). Die Werte kommen aus vorhandener Logik (`forecast.ts`, `budget.ts`) — nicht neu herleiten.
+- **Bibliothek:** Das Repo hat **keine** Chart-Bibliothek (nur dnd-kit + framer-motion), und Icons sind bewusst handgezeichnet in `ui/Icon.tsx`. Passend dazu: `d3-sankey` + `d3-shape` (winzig, liefert das Layout und `arc()` für den Donut gleich mit), gerendert als eigenes SVG. Kein recharts/Chart.js — ein ganzes Chart-Framework für zwei Diagramme wäre für eine Mobile-App zu teuer und stilistisch ein Fremdkörper.
+- **Mobile-first ist hier der Knackpunkt:** Die Referenz ist Desktop. Ein 4-spaltiger Sankey mit Textlabels ist auf einem Telefon unlesbar. Vor dem Bauen entscheiden, was auf schmalen Screens passiert — Vorschlag: unter `sm` nur Einnahmen → Hauptkategorie zeigen und per Tap in eine Hauptkategorie hineinzoomen (dann deren Unterkategorien), statt alles gleichzeitig zu quetschen. Querformat/Scroll als Notlösung ist schlechter.
+- **Nebenbei, unabhängig und klein:** Im Gemeinsam-Bereich den Tab „Finanzen" in **„Split"** umbenennen und das Symbol von `EuroIcon` auf ein neues Waage-/Gleichgewichts-Icon wechseln. Nur Label + Icon in `App.tsx` und ein neues `ScaleIcon` in `ui/Icon.tsx` im Stil der übrigen Line-Icons; die interne Tab-ID `'finance'` und der Ordner `components/Finance/` bleiben, um den Diff klein zu halten.
+
+_Verify:_ Summen im Sankey stimmen exakt mit dem Donut und den Kopfzahlen überein (Kanten einer Ebene summieren sich auf ihren Elternknoten, programmatisch prüfen); Kategorien ohne Unterkategorie erscheinen trotzdem korrekt; €- und %-Ansicht beschreiben dieselben Daten (Prozente summieren sich auf 100); Klick-Panel zeigt genau die Buchungen, die in die Kante eingeflossen sind; Darstellung auf schmalem Viewport geprüft (Screenshot), nicht nur auf Desktop.
+
 **Phase 3 — Spar-Kaskade + Töpfe (Herzstück)**
 `pf_pots` (Ziel + Reihenfolge). `pf_allocation_steps`: konfigurierbare Prioritäts-Kaskade in der Reihenfolge Fixkosten → Gemeinsam-Pauschale → Jahresabo-Rücklage → Alltag/Freizeit → Schuldentilgung (`pf_debts`) → Töpfe (Notgroschen → Urlaub → Gönner) → Altersvorsorge. Engine: prognostiziertes Rest-Geld entlang der Kaskade verteilen und pro Stufe/Topf zeigen, wieviel diesen Monat reinfließt.
-_Verify:_ Kaskade rechnet korrekt durch und deckt sich mit dem abgestimmten Flowchart; Restgeld-Logik stimmt bei Kantenfällen (zu wenig Geld, Topf voll).
+**Gehört mit in diese Phase, nicht daneben:** Die **50/30/20-Ansicht** (Zielbalken + Verlauf auf `pf_categories.planning_bucket`, in Phase 2.5 vorgezogen) ist die Lesart genau der Buckets, in die die Kaskade einzahlt — und die **Schuldentilgung** als Fortschrittstracker ist die Kaskadenstufe `pf_debts`. Beides als Teil von Phase 3 bauen. Separat gebaut entstehen zwei halbe Allokationslogiken, die sich später widersprechen.
+
+_Verify:_ Kaskade rechnet korrekt durch und deckt sich mit dem abgestimmten Flowchart; Restgeld-Logik stimmt bei Kantenfällen (zu wenig Geld, Topf voll). 50/30/20-Ansicht und Kaskade beziehen ihre Bucket-Summen aus derselben Quelle (keine zweite Rechenstelle).
 
 **Phase 4 — Konten-Flow-Board (editierbar, „Miro mit Rahmen")**
 `pf_account_flows`: grafische, per Drag anpassbare Darstellung der Geldflüsse zwischen den Konten (dnd-kit ist vorhanden). Vorgegebener Rahmen (DKB-Hub zentral), Nodes/Edges anpassbar, Anordnung persistiert.
+_Nicht verwechseln mit dem Sankey aus Phase 2.5:_ dort fließt Geld nach **Kategorien**, hier zwischen **Konten**, und hier ist es editierbar. Gleiche Optik, andere Daten — die Render-/Farb-Bausteine aus 2.5 wiederverwenden statt neu bauen.
 _Verify:_ Board bildet Fidels reale Kontenlandschaft ab; Anpassungen bleiben nach Reload erhalten.
 
 **Phase 5 — Abo-/Vertrags-Tracker**
@@ -93,7 +112,7 @@ _Verify:_ Report-Zahlen stimmen mit Dashboard überein.
 **Querschnitt (durchgängig, nicht am Ende):**
 - **Sicherheit:** RLS strikt testen (privat = nur eigener `auth.uid()`), kein Secret im Frontend.
 - **Backup:** „Backup jetzt"-Funktion, die den kompletten Datenbestand als JSON/CSV exportiert; zusätzlich regelmäßiger Supabase-Export. Bei Geld nicht verhandelbar. **Repo ist öffentlich → Backups/Exporte nie in den Repo-Baum** (außerhalb ablegen; `docs/backups/` gitignored).
-- **Navigation/IA:** Einstellungen global erreichbar (Header oben, in beiden Welten — nicht als Tab; aktuell hängt sogar „Passwort ändern" in einem Gemeinsam-Tab). Klar unterscheidbare Tab-Titel/Icons je Welt, damit man Tabs nicht verwechselt — weder innerhalb einer Welt noch zwischen Gemeinsam/Persönlich. Wird ohnehin nötig, weil Phase 2+ mehr Persönlich-Tabs bringt (Budgets, Kaskade, Töpfe, Vermögen, Reports) und eine 1-/3-Tab-Leiste nicht auf 6+ skaliert. Am besten ein kurzer IA-Pass **vor** Phase 2, bevor weitere Tabs dazukommen.
+- **Navigation/IA:** IA-Pass ist **erledigt** (28.07.) — Einstellungen hängen global im Header statt in einem Gemeinsam-Tab, Tab-Titel/Icons je Welt klar unterscheidbar. Bleibt als Daueraufgabe: Jede weitere Phase bringt Persönlich-Tabs dazu (Kaskade, Töpfe, Vermögen, Reports); eine Tab-Leiste skaliert nicht auf 6+, also rechtzeitig gruppieren statt endlos anhängen. Offen aus der Ideensammlung: Gemeinsam-Tab „Finanzen" → **„Split"** samt Waage-Icon (Details in Phase 2.5).
 
 ## 5. Offene Entscheidungen (nicht blockierend, im Bau zu klären)
 

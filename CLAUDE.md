@@ -16,6 +16,7 @@ Der alte Finanztracker (`dev-workspace/finanztracker/`) ist reine **Logik-Quelle
 - **Frontend:** React + TypeScript + Vite + Tailwind. Animationen framer-motion, Drag&Drop dnd-kit.
 - **Backend:** Supabase — Auth, Postgres, Realtime, Storage. Schema in `supabase/schema.sql`.
 - **Start:** `npm install`, `.env` aus `.env.example` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`), `npm run dev`.
+- **Test-Login:** Zugangsdaten für manuelle Funktionstests (localhost) in `docs/test-credentials.md` (gitignored, nicht im Repo).
 - **Deploy:** Push auf `main` → GitHub Actions → GitHub Pages. Automatisch.
 - **Sprache im UI:** Deutsch. Beträge in Euro, deutsches Zahlenformat.
 

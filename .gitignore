@@ -16,3 +16,6 @@ dist-ssr
 # Dieses Repo ist oeffentlich -> Backups gehoeren nie hier hinein.
 docs/backups/
 *.backup.json
+
+# Test-Login-Zugangsdaten fuer Claude Code - Repo ist oeffentlich, nie committen.
+docs/test-credentials.md
