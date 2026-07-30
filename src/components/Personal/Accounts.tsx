@@ -10,12 +10,16 @@ import type { PfAccount } from '../../types'
 const typeLabel = (t: string) => ACCOUNT_TYPES.find((x) => x.id === t)?.label ?? t
 
 export default function Accounts() {
-  const { loading, accounts, transactions } = usePersonal()
+  const { loading, accounts, transactions, cashLocations } = usePersonal()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<PfAccount | null>(null)
 
   // Saldo je Konto aus den Umsaetzen: Einnahmen plus, Ausgaben minus.
   // Der Betrag ist in der DB immer positiv — die Richtung steckt in `type`.
+  //
+  // Ausnahme Bargeld: dort gilt der selbst gesetzte Stand bzw. die Summe der
+  // Orte. Ein Geldbeutel fuellt sich nicht aus Buchungen, sondern beim
+  // Nachschauen.
   const balances = useMemo(() => {
     const m = new Map<string, number>()
     for (const t of transactions) {
@@ -23,8 +27,18 @@ export default function Accounts() {
       const delta = t.type === 'income' ? Number(t.amount) : -Number(t.amount)
       m.set(t.account_id, (m.get(t.account_id) ?? 0) + delta)
     }
+    for (const acc of accounts) {
+      if (acc.type !== 'bar') continue
+      const locs = cashLocations.filter((l) => l.account_id === acc.id)
+      m.set(
+        acc.id,
+        locs.length > 0
+          ? locs.reduce((sum, l) => sum + Number(l.amount), 0)
+          : Number(acc.stated_balance ?? 0),
+      )
+    }
     return m
-  }, [transactions])
+  }, [transactions, accounts, cashLocations])
 
   const openNew = () => {
     setEditing(null)
@@ -90,7 +104,14 @@ export default function Accounts() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-[12px] text-zinc-400">{typeLabel(acc.type)}</p>
+                    <p className="mt-0.5 text-[12px] text-zinc-400">
+                      {typeLabel(acc.type)}
+                      {acc.type === 'bar' &&
+                        (() => {
+                          const n = cashLocations.filter((l) => l.account_id === acc.id).length
+                          return n > 0 ? ` · ${n} ${n === 1 ? 'Ort' : 'Orte'}` : ' · selbst gezählt'
+                        })()}
+                    </p>
                   </div>
                   <p className="shrink-0 text-[15px] font-semibold tabular-nums text-zinc-900">
                     {formatMoney(balances.get(acc.id) ?? 0)}

@@ -22,6 +22,7 @@ export const TABLE = {
   PF_CATEGORIES:     'pf_categories',
   PF_TRANSACTIONS:   'pf_transactions',
   PF_IMPORT_BATCHES: 'pf_import_batches',
+  PF_CASH_LOCATIONS: 'pf_cash_locations',
 
   // Planungs-Ebene (Phase 2)
   PF_FIXED_COSTS:        'pf_fixed_costs',

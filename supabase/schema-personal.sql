@@ -396,6 +396,44 @@ create trigger pf_categories_two_levels
   before insert or update on public.pf_categories
   for each row execute function public.pf_categories_enforce_two_levels();
 
+-- ---------------------------------------------------------------------------
+-- 8. Bargeld-Bestand
+--
+--    Bei einem Girokonto ergibt sich der Stand aus den Buchungen. Bargeld
+--    zaehlt man dagegen nachschauend im Geldbeutel — dafuer erst Buchungen
+--    anzulegen waere genau die Reibung, an der so eine App im Alltag stirbt.
+--    Deshalb ein selbst gesetzter Betrag.
+--
+--    stated_balance gilt ausschliesslich fuer Konten vom Typ 'bar'; bei allen
+--    anderen bleibt der Stand aus den Umsaetzen gerechnet.
+-- ---------------------------------------------------------------------------
+alter table public.pf_accounts
+  add column if not exists stated_balance numeric(12,2);
+
+-- Optionale Aufteilung auf Orte ("Geldbeutel", "Schublade", "Urlaubskasse").
+--
+-- Entweder ODER, nie beides: sobald es Orte gibt, ist der Bargeld-Stand ihre
+-- Summe und stated_balance wird nicht mehr angezeigt. Zwei sichtbare Zahlen
+-- fuer denselben Betrag waeren zwei Quellen der Wahrheit.
+create table if not exists public.pf_cash_locations (
+  id         uuid primary key default gen_random_uuid(),
+  owner_id   uuid not null references auth.users(id) on delete cascade default auth.uid(),
+  account_id uuid not null,
+  name       text not null,
+  amount     numeric(12,2) not null default 0 check (amount >= 0),
+  position   double precision not null default 0,
+  created_at timestamptz not null default now(),
+
+  -- Nur auf ein EIGENES Konto, gleiches Muster wie ueberall hier.
+  constraint pf_cash_locations_account_fk
+    foreign key (owner_id, account_id)
+    references public.pf_accounts(owner_id, id)
+    on delete cascade
+);
+
+create index if not exists pf_cash_locations_owner_idx
+  on public.pf_cash_locations(owner_id, account_id, position);
+
 -- ============================================================================
 -- ROW LEVEL SECURITY — die eigentliche Isolation
 -- ============================================================================
@@ -407,13 +445,15 @@ alter table public.pf_fixed_costs        enable row level security;
 alter table public.pf_recurring_income   enable row level security;
 alter table public.pf_variable_estimates enable row level security;
 alter table public.pf_monthly_plan       enable row level security;
+alter table public.pf_cash_locations     enable row level security;
 
 do $$
 declare
   t text;
 begin
   foreach t in array array['pf_accounts','pf_categories','pf_import_batches','pf_transactions',
-                        'pf_fixed_costs','pf_recurring_income','pf_variable_estimates','pf_monthly_plan']
+                        'pf_fixed_costs','pf_recurring_income','pf_variable_estimates','pf_monthly_plan',
+                        'pf_cash_locations']
   loop
     execute format('drop policy if exists "owner_only" on public.%I;', t);
     execute format($f$
@@ -434,7 +474,8 @@ declare
   t text;
 begin
   foreach t in array array['pf_accounts','pf_categories','pf_import_batches','pf_transactions',
-                        'pf_fixed_costs','pf_recurring_income','pf_variable_estimates','pf_monthly_plan']
+                        'pf_fixed_costs','pf_recurring_income','pf_variable_estimates','pf_monthly_plan',
+                        'pf_cash_locations']
   loop
     begin
       execute format('alter publication supabase_realtime add table public.%I;', t);
@@ -452,3 +493,4 @@ alter table public.pf_fixed_costs        replica identity full;
 alter table public.pf_recurring_income   replica identity full;
 alter table public.pf_variable_estimates replica identity full;
 alter table public.pf_monthly_plan       replica identity full;
+alter table public.pf_cash_locations     replica identity full;

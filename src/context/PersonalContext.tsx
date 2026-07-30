@@ -17,6 +17,8 @@ import type {
   ImportRow,
   PfAccount,
   PfAccountInput,
+  PfCashLocation,
+  PfCashLocationInput,
   PfCategory,
   PfCategoryInput,
   PfFixedCost,
@@ -62,6 +64,8 @@ const currentMonth = (): string => todayISO().slice(0, 7)
 interface PersonalContextValue {
   loading:      boolean
   accounts:     PfAccount[]
+  /** Optionale Orte eines Bargeld-Kontos; leer = ein einzelner Bestand. */
+  cashLocations: PfCashLocation[]
   categories:   PfCategory[]
   transactions: PfTransaction[]
   /** ALLE Umsaetze des laufenden Monats — Grundlage aller Monatssummen.
@@ -75,6 +79,10 @@ interface PersonalContextValue {
   addAccount:    (data: PfAccountInput) => Promise<PfAccount | null>
   updateAccount: (id: string, data: Partial<PfAccountInput>) => Promise<void>
   deleteAccount: (id: string) => Promise<void>
+
+  addCashLocation:    (data: PfCashLocationInput) => Promise<void>
+  updateCashLocation: (id: string, data: Partial<PfCashLocationInput>) => Promise<void>
+  deleteCashLocation: (id: string) => Promise<void>
 
   addCategory:    (data: PfCategoryInput) => Promise<PfCategory | null>
   /** true = gespeichert. Bei false steht der Grund schon als Hinweis auf dem
@@ -139,6 +147,7 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
 
   const [loading, setLoading]           = useState(true)
   const [accounts, setAccounts]         = useState<PfAccount[]>([])
+  const [cashLocations, setCashLocations] = useState<PfCashLocation[]>([])
   const [categories, setCategories]     = useState<PfCategory[]>([])
   const [transactions, setTransactions] = useState<PfTransaction[]>([])
   const [monthTransactions, setMonthTransactions] = useState<PfTransaction[]>([])
@@ -148,11 +157,13 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
   const [estimates, setEstimates]       = useState<PfVariableEstimate[]>([])
 
   const seeded = useRef(false)
+  const cashSeeded = useRef(false)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
-    const [accRes, catRes, txRes, monthRes, batchRes, fixRes, incRes, estRes] = await Promise.all([
+    const [accRes, cashRes, catRes, txRes, monthRes, batchRes, fixRes, incRes, estRes] = await Promise.all([
       personalService.fetchAccounts(),
+      personalService.fetchCashLocations(),
       personalService.fetchCategories(),
       personalService.fetchTransactions(),
       personalService.fetchTransactionsForMonth(currentMonth()),
@@ -162,8 +173,32 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
       personalService.fetchVariableEstimates(),
     ])
 
-    if (accRes.error) dbErr('Konten konnten nicht geladen werden.')
-    else setAccounts((accRes.data ?? []) as PfAccount[])
+    if (accRes.error) {
+      dbErr('Konten konnten nicht geladen werden.')
+    } else {
+      const accs = (accRes.data ?? []) as PfAccount[]
+      setAccounts(accs)
+
+      // Ein Bargeld-Konto gehoert immer dazu: Bargeld hat man, ob man es
+      // anlegt oder nicht, und wer es erst anlegen muss, traegt seinen Bestand
+      // nie ein. Nur wenn keines existiert — wer eigene angelegt hat, behaelt
+      // sie unangetastet.
+      if (!accs.some((a) => a.type === 'bar') && !cashSeeded.current) {
+        cashSeeded.current = true
+        const { data: row, error } = await personalService.addAccount({
+          name: 'Bargeld',
+          type: 'bar',
+          is_hub: false,
+          is_shared_ref: false,
+          stated_balance: 0,
+          position: accs.length,
+        })
+        if (row) setAccounts((a) => upsert(a, row as PfAccount).sort(byPosition))
+        else if (error) cashSeeded.current = false
+      }
+    }
+
+    if (!cashRes.error) setCashLocations((cashRes.data ?? []) as PfCashLocation[])
 
     if (txRes.error) dbErr('Umsätze konnten nicht geladen werden.')
     else setTransactions((txRes.data ?? []) as PfTransaction[])
@@ -224,6 +259,11 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: TABLE.PF_ACCOUNTS }, (p) => {
         if (p.eventType === 'DELETE') setAccounts((a) => removeById(a, (p.old as PfAccount).id))
         else setAccounts((a) => upsert(a, p.new as PfAccount).sort(byPosition))
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: TABLE.PF_CASH_LOCATIONS }, (p) => {
+        if (p.eventType === 'DELETE')
+          setCashLocations((a) => removeById(a, (p.old as PfCashLocation).id))
+        else setCashLocations((a) => upsert(a, p.new as PfCashLocation).sort(byPosition))
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: TABLE.PF_CATEGORIES }, (p) => {
         if (p.eventType === 'DELETE') setCategories((a) => removeById(a, (p.old as PfCategory).id))
@@ -293,6 +333,27 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
     const { error } = await personalService.deleteAccount(id)
     if (error) dbErr('Konto konnte nicht gelöscht werden.')
     else setAccounts((a) => removeById(a, id))
+  }, [])
+
+  const addCashLocation = useCallback(async (data: PfCashLocationInput) => {
+    const { data: row, error } = await personalService.addCashLocation(data)
+    if (error) dbErr('Ort konnte nicht angelegt werden.')
+    else setCashLocations((a) => upsert(a, row as PfCashLocation).sort(byPosition))
+  }, [])
+
+  const updateCashLocation = useCallback(
+    async (id: string, data: Partial<PfCashLocationInput>) => {
+      const { error } = await personalService.updateCashLocation(id, data)
+      if (error) dbErr('Ort konnte nicht geändert werden.')
+      else setCashLocations((a) => a.map((c) => (c.id === id ? { ...c, ...data } : c)).sort(byPosition))
+    },
+    [],
+  )
+
+  const deleteCashLocation = useCallback(async (id: string) => {
+    const { error } = await personalService.deleteCashLocation(id)
+    if (error) dbErr('Ort konnte nicht gelöscht werden.')
+    else setCashLocations((a) => removeById(a, id))
   }, [])
 
   const addCategory = useCallback(async (data: PfCategoryInput) => {
@@ -504,6 +565,7 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
   const value: PersonalContextValue = {
     loading,
     accounts,
+    cashLocations,
     categories,
     transactions,
     monthTransactions,
@@ -514,6 +576,9 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
     addAccount,
     updateAccount,
     deleteAccount,
+    addCashLocation,
+    updateCashLocation,
+    deleteCashLocation,
     addCategory,
     updateCategory,
     deleteCategory,

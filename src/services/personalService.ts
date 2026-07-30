@@ -8,6 +8,7 @@ import {
 import { makeDedupKey } from '../lib/dedup'
 import type {
   PfAccountInput,
+  PfCashLocationInput,
   PfCategoryInput,
   PfFixedCostInput,
   PfRecurringIncomeInput,
@@ -42,6 +43,29 @@ export async function updateAccount(id: string, data: Partial<PfAccountInput>) {
 
 export async function deleteAccount(id: string) {
   return supabase.from(TABLE.PF_ACCOUNTS).delete().eq('id', id)
+}
+
+// ---------------------------------------------------------------------------
+// Bargeld: selbst gesetzter Stand, optional auf Orte aufgeteilt.
+// ---------------------------------------------------------------------------
+
+export async function fetchCashLocations() {
+  return supabase
+    .from(TABLE.PF_CASH_LOCATIONS)
+    .select('*')
+    .order('position', { ascending: true })
+}
+
+export async function addCashLocation(data: PfCashLocationInput) {
+  return supabase.from(TABLE.PF_CASH_LOCATIONS).insert(data).select().single()
+}
+
+export async function updateCashLocation(id: string, data: Partial<PfCashLocationInput>) {
+  return supabase.from(TABLE.PF_CASH_LOCATIONS).update(data).eq('id', id)
+}
+
+export async function deleteCashLocation(id: string) {
+  return supabase.from(TABLE.PF_CASH_LOCATIONS).delete().eq('id', id)
 }
 
 export async function addCategory(data: PfCategoryInput) {

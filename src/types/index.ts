@@ -98,6 +98,21 @@ export interface PfAccount {
   type: PfAccountType
   is_hub: boolean
   is_shared_ref: boolean
+  /** Selbst gesetzter Stand — nur bei Konten vom Typ 'bar' benutzt. Bargeld
+   *  zählt man nachschauend, statt es aus Buchungen herzuleiten. Gibt es
+   *  Orte (PfCashLocation), gilt deren Summe und dieses Feld ruht. */
+  stated_balance: number | null
+  position: number
+  created_at: string
+}
+
+/** Optionale Aufteilung eines Bargeld-Kontos auf Orte („Geldbeutel", „Schublade"). */
+export interface PfCashLocation {
+  id: string
+  owner_id: string
+  account_id: string
+  name: string
+  amount: number
   position: number
   created_at: string
 }
@@ -150,6 +165,7 @@ export interface PfImportBatch {
 
 /** Felder, die das Frontend beim Anlegen schicken darf (ohne owner_id!). */
 export type PfAccountInput = Omit<PfAccount, 'id' | 'owner_id' | 'created_at'>
+export type PfCashLocationInput = Omit<PfCashLocation, 'id' | 'owner_id' | 'created_at'>
 export type PfCategoryInput = Omit<PfCategory, 'id' | 'owner_id' | 'created_at'>
 
 /** dedup_key fehlt bewusst: den berechnet der personalService zentral, damit
