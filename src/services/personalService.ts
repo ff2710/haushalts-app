@@ -4,11 +4,15 @@ import {
   PF_DEFAULT_CATEGORIES,
   PF_TX_PAGE_SIZE,
   PF_SUGGESTION_SCAN_LIMIT,
+  PF_DEFAULT_ALLOCATION_STEPS,
 } from '../constants'
 import { makeDedupKey } from '../lib/dedup'
 import type {
   PfAccountInput,
+  PfAllocationStepInput,
   PfCashLocationInput,
+  PfDebtInput,
+  PfPotInput,
   PfCategoryInput,
   PfFixedCostInput,
   PfRecurringIncomeInput,
@@ -298,6 +302,57 @@ export async function deleteVariableEstimate(id: string) {
  * Zeilen begrenzt (PF_SUGGESTION_SCAN_LIMIT) — bei realistischem Volumen
  * deckt das die noetigen drei Vormonate um ein Vielfaches ab.
  */
+// ---------------------------------------------------------------------------
+// Spar-Kaskade, Toepfe, Schulden (Phase 3)
+// ---------------------------------------------------------------------------
+
+export async function fetchPots() {
+  return supabase.from(TABLE.PF_POTS).select('*').order('priority', { ascending: true })
+}
+export async function addPot(data: PfPotInput) {
+  return supabase.from(TABLE.PF_POTS).insert(data).select().single()
+}
+export async function updatePot(id: string, data: Partial<PfPotInput>) {
+  return supabase.from(TABLE.PF_POTS).update(data).eq('id', id)
+}
+export async function deletePot(id: string) {
+  return supabase.from(TABLE.PF_POTS).delete().eq('id', id)
+}
+
+export async function fetchDebts() {
+  return supabase.from(TABLE.PF_DEBTS).select('*').order('priority', { ascending: true })
+}
+export async function addDebt(data: PfDebtInput) {
+  return supabase.from(TABLE.PF_DEBTS).insert(data).select().single()
+}
+export async function updateDebt(id: string, data: Partial<PfDebtInput>) {
+  return supabase.from(TABLE.PF_DEBTS).update(data).eq('id', id)
+}
+export async function deleteDebt(id: string) {
+  return supabase.from(TABLE.PF_DEBTS).delete().eq('id', id)
+}
+
+export async function fetchAllocationSteps() {
+  return supabase.from(TABLE.PF_ALLOCATION_STEPS).select('*').order('position', { ascending: true })
+}
+export async function addAllocationStep(data: PfAllocationStepInput) {
+  return supabase.from(TABLE.PF_ALLOCATION_STEPS).insert(data).select().single()
+}
+export async function updateAllocationStep(id: string, data: Partial<PfAllocationStepInput>) {
+  return supabase.from(TABLE.PF_ALLOCATION_STEPS).update(data).eq('id', id)
+}
+export async function deleteAllocationStep(id: string) {
+  return supabase.from(TABLE.PF_ALLOCATION_STEPS).delete().eq('id', id)
+}
+
+/** Legt die Startaufstellung der Kaskade an. Nur, wenn es noch keine gibt. */
+export async function seedAllocationSteps() {
+  return supabase
+    .from(TABLE.PF_ALLOCATION_STEPS)
+    .insert(PF_DEFAULT_ALLOCATION_STEPS.map((s) => ({ ...s })))
+    .select()
+}
+
 export async function fetchExpenseTotalsBefore(month: string) {
   const { data, error } = await supabase
     .from(TABLE.PF_TRANSACTIONS)

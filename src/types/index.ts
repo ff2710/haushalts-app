@@ -226,6 +226,59 @@ export interface PfMonthlyPlan {
   created_at: string
 }
 
+// ── Spar-Kaskade, Toepfe, Schulden (Phase 3) ────────────────────────────────
+
+export type PfStepKind = 'fixed' | 'percent' | 'debts' | 'pots' | 'rest'
+
+export interface PfPot {
+  id: string
+  owner_id: string
+  name: string
+  /** Zielbetrag; null = ohne Ziel. Wenn gesetzt, immer > 0. */
+  target_amount: number | null
+  /** Selbst gesetzter Stand — ein Topf hat keine eigene Buchungshistorie. */
+  current_amount: number
+  /** Höchstens so viel je Monat hineinfüllen; null = kein Deckel. */
+  monthly_cap: number | null
+  /** Kleiner = zuerst befüllen. */
+  priority: number
+  account_id: string | null
+  active: boolean
+  created_at: string
+}
+
+export interface PfDebt {
+  id: string
+  owner_id: string
+  creditor: string
+  initial_amount: number
+  paid_amount: number
+  /** Wunschrate je Monat; null = nimmt, was die Kaskade übrig lässt. */
+  monthly_rate: number | null
+  priority: number
+  note: string
+  active: boolean
+  created_at: string
+}
+
+export interface PfAllocationStep {
+  id: string
+  owner_id: string
+  name: string
+  kind: PfStepKind
+  /** Nur bei kind='fixed'. */
+  amount: number | null
+  /** Nur bei kind='percent'. */
+  percent: number | null
+  position: number
+  active: boolean
+  created_at: string
+}
+
+export type PfPotInput = Omit<PfPot, 'id' | 'owner_id' | 'created_at'>
+export type PfDebtInput = Omit<PfDebt, 'id' | 'owner_id' | 'created_at'>
+export type PfAllocationStepInput = Omit<PfAllocationStep, 'id' | 'owner_id' | 'created_at'>
+
 export type PfFixedCostInput = Omit<PfFixedCost, 'id' | 'owner_id' | 'created_at'>
 export type PfRecurringIncomeInput = Omit<PfRecurringIncome, 'id' | 'owner_id' | 'created_at'>
 export type PfVariableEstimateInput = Omit<PfVariableEstimate, 'id' | 'owner_id' | 'created_at'>

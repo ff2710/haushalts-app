@@ -29,6 +29,11 @@ export const TABLE = {
   PF_RECURRING_INCOME:   'pf_recurring_income',
   PF_VARIABLE_ESTIMATES: 'pf_variable_estimates',
   PF_MONTHLY_PLAN:       'pf_monthly_plan',
+
+  // Spar-Kaskade (Phase 3)
+  PF_POTS:              'pf_pots',
+  PF_DEBTS:             'pf_debts',
+  PF_ALLOCATION_STEPS:  'pf_allocation_steps',
 } as const
 
 /** Obergrenze fuer die Umsaetze, aus denen der Ausgaben-Vorschlag der Prognose
@@ -90,6 +95,17 @@ export const PF_CATEGORY_COLORS = [
   '#8b5cf6', // Violett    (Farbton 258)
   '#ec4899', // Pink       (Farbton 330)
   '#64748b', // Grau       (neutral)
+] as const
+
+/** Startaufstellung der Kaskade, angelegt beim ersten Oeffnen je Person.
+ *  Reihenfolge aus dem Bauplan; Fixkosten und variable Schaetzung fehlen
+ *  bewusst — die sind vom Restgeld bereits abgezogen. */
+export const PF_DEFAULT_ALLOCATION_STEPS = [
+  { name: 'Gemeinsam-Pauschale', kind: 'fixed',   amount: 0,    percent: null, position: 0 },
+  { name: 'Schuldentilgung',     kind: 'debts',   amount: null, percent: null, position: 1 },
+  { name: 'Töpfe füllen',        kind: 'pots',    amount: null, percent: null, position: 2 },
+  { name: 'Altersvorsorge',      kind: 'percent', amount: null, percent: 10,   position: 3 },
+  { name: 'Frei verfügbar',      kind: 'rest',    amount: null, percent: null, position: 4 },
 ] as const
 
 export const STORAGE_BUCKET = {
