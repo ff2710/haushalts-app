@@ -21,7 +21,6 @@ export default function AddItemForm({
   const [newGroupName, setNewGroupName] = useState('')
   const [groupError, setGroupError]   = useState('')
   const [busy, setBusy]               = useState(false)
-  const [submitted, setSubmitted]     = useState(false)
 
   const nameRef        = useRef<HTMLInputElement>(null)
   const newStoreRef    = useRef<HTMLInputElement>(null)
@@ -39,14 +38,18 @@ export default function AddItemForm({
       setName(''); setQuantity(''); setUnit('')
       setStoreId(''); setCategoryId('')
       setAddingFor(null); setNewGroupName(''); setGroupError('')
-      setBusy(false); setSubmitted(false)
+      setBusy(false)
     }
   }, [open])
 
+  // Ein Artikel pro Öffnung: nach dem Anlegen schliesst das Sheet, statt
+  // Felder zurückzusetzen und offen zu bleiben. Wer mehrere Artikel braucht,
+  // öffnet das Sheet erneut — dafür verdeckt die Tastatur nie wieder den
+  // Hinzufügen-Button, der jetzt oben bündig mit dem Drag-Handle sitzt.
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     const trimmed = name.trim()
-    if (!trimmed) return
+    if (!trimmed || busy) return
     setBusy(true)
     await addItem({
       name:        trimmed,
@@ -55,15 +58,8 @@ export default function AddItemForm({
       store_id:    storeId    || null,
       category_id: categoryId || null,
     })
-    setName('')
-    setQuantity('')
-    setUnit('')
-    setStoreId('')
-    setCategoryId('')
     setBusy(false)
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 600)
-    nameRef.current?.focus()
+    onClose()
   }
 
   const startAddNew = (for_: 'store' | 'category') => {
@@ -148,13 +144,16 @@ export default function AddItemForm({
     <BottomSheet open={open} onClose={onClose}>
       <form onSubmit={(e) => void submit(e)} className="flex flex-col">
 
-              {/* Fertig-Button oben rechts, bündig mit dem Drag-Handle */}
+              {/* Hinzufügen-Button oben rechts, bündig mit dem Drag-Handle — nie
+                  von der Tastatur verdeckt, anders als ein Button am unteren
+                  Rand. Schliessen geht ab jetzt nur noch über Runterziehen
+                  oder Tippen daneben (beides schon in BottomSheet). */}
               <button
-                type="button"
-                onClick={onClose}
-                className="absolute right-5 top-4 text-[15px] font-semibold text-brand-600"
+                type="submit"
+                disabled={busy || !name.trim()}
+                className="absolute right-5 top-4 text-[15px] font-semibold text-brand-600 transition-opacity duration-150 disabled:opacity-30"
               >
-                Fertig
+                {busy ? 'Hinzufügen…' : 'Hinzufügen'}
               </button>
 
               {/* Artikelname — groß und zentriert */}
@@ -243,22 +242,6 @@ export default function AddItemForm({
                   </button>
                 </div>
                 {newGroupInput('category')}
-              </div>
-
-              {divider}
-
-              {/* Submit */}
-              <div className="mx-5 pt-5 pb-1">
-                <button
-                  type="submit"
-                  disabled={busy || !name.trim()}
-                  className={
-                    'w-full rounded-2xl py-4 text-[16px] font-bold tracking-[-0.2px] text-white transition-colors duration-200 active:scale-[0.98] disabled:opacity-30 ' +
-                    (submitted ? 'bg-emerald-500' : 'bg-brand-600 hover:bg-brand-700')
-                  }
-                >
-                  {busy ? 'Hinzufügen…' : submitted ? '✓ Hinzugefügt' : 'Hinzufügen'}
-                </button>
               </div>
 
       </form>
