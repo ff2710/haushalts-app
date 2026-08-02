@@ -49,8 +49,17 @@ export function bucketOf(
   categories: BucketCategory[],
 ): Bucket | null {
   if (!categoryId) return null
+  return resolve(categoryId, new Map(categories.map((c) => [c.id, c])))
+}
+
+/**
+ * Dasselbe fuer viele Abfragen hintereinander: baut den Index einmal und gibt
+ * eine Funktion zurueck. Wer in einer Schleife ueber Buchungen laeuft, nimmt
+ * die — bucketOf wuerde sonst je Buchung den ganzen Index neu aufbauen.
+ */
+export function bucketResolver(categories: BucketCategory[]): (id: string | null) => Bucket | null {
   const byId = new Map(categories.map((c) => [c.id, c]))
-  return resolve(categoryId, byId)
+  return (categoryId) => (categoryId ? resolve(categoryId, byId) : null)
 }
 
 function resolve(categoryId: string, byId: Map<string, BucketCategory>): Bucket | null {

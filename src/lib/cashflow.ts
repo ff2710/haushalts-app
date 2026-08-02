@@ -15,6 +15,7 @@
 // Gefaehrliche.
 
 import { categoryColorMap } from './categoryColors'
+import { bucketResolver } from './buckets'
 
 export type NodeKind = 'income' | 'budget' | 'category' | 'subcategory'
 
@@ -103,6 +104,9 @@ export function buildCashflow(
 ): Cashflow {
   const byId = new Map(categories.map((c) => [c.id, c]))
   const colors = categoryColorMap(categories)
+  // Ein Index fuer alle Buchungen — die Aufloesung selbst steht in
+  // lib/buckets.ts und wird hier nicht nachgebaut.
+  const bucketOfCategory = bucketResolver(categories)
 
   // Wo gehoert eine Buchung hin? Auf eine Unterkategorie gebucht heisst: sie
   // zaehlt zusaetzlich auf deren Hauptkategorie.
@@ -151,8 +155,11 @@ export function buildCashflow(
       continue
     }
     const main = cat.parent_id ? (byId.get(cat.parent_id) ?? cat) : cat
-    // Der Topf haengt an der Hauptkategorie; eine Unterkategorie erbt ihn.
-    if (main.planning_bucket === 'sparen') savedDeliberate += amount
+    // Der Topf wird ueber lib/buckets.ts aufgeloest, nicht hier noch einmal
+    // nachgebaut. Zwei Implementierungen derselben Regel driften auseinander,
+    // sobald sich die Regel aendert — und dann sagte die Uebersicht etwas
+    // anderes als die 50/30/20-Ansicht.
+    if (bucketOfCategory(cat.id) === 'sparen') savedDeliberate += amount
     expenseByMain.set(main.id, (expenseByMain.get(main.id) ?? 0) + amount)
     if (cat.parent_id && byId.has(cat.parent_id)) {
       expenseBySub.set(cat.id, (expenseBySub.get(cat.id) ?? 0) + amount)

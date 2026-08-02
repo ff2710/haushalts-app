@@ -562,6 +562,16 @@ create table if not exists public.pf_allocation_steps (
 create index if not exists pf_allocation_steps_owner_idx
   on public.pf_allocation_steps(owner_id, position);
 
+-- Stufennamen sind je Person eindeutig. Zwei Stufen gleichen Namens waeren in
+-- der Liste ohnehin nicht auseinanderzuhalten — vor allem aber sichert das die
+-- Startaufstellung ab: oeffnen zwei Geraete die App gleichzeitig zum ersten
+-- Mal, sehen beide eine leere Kaskade und wollen beide seeden. Ohne diesen
+-- Index staenden danach zehn Stufen statt fuenf. Dasselbe Muster wie beim
+-- Kategorien-Seed, der sich auf pf_categories_owner_parent_name_type_key
+-- verlaesst.
+create unique index if not exists pf_allocation_steps_owner_name_key
+  on public.pf_allocation_steps(owner_id, name);
+
 -- ============================================================================
 -- ROW LEVEL SECURITY — die eigentliche Isolation
 -- ============================================================================

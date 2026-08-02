@@ -275,8 +275,16 @@ export function PersonalProvider({ children }: { children: ReactNode }) {
       if (steps.length === 0 && !stepsSeeded.current) {
         stepsSeeded.current = true
         const { data, error } = await personalService.seedAllocationSteps()
-        if (data) steps = data as PfAllocationStep[]
-        else if (error) stepsSeeded.current = false
+        if (data) {
+          steps = data as PfAllocationStep[]
+        } else if (error) {
+          // 23505 = ein zweites Geraet war schneller. Kein Fehler fuer den
+          // Nutzer; Realtime liefert die Stufen gleich nach.
+          if (error.code !== '23505') {
+            dbErr('Kaskade konnte nicht angelegt werden.')
+            stepsSeeded.current = false
+          }
+        }
       }
       setSteps(steps.sort(byPosition))
     }
