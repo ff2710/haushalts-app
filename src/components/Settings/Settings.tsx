@@ -10,6 +10,9 @@ import { animate, motion, AnimatePresence, useMotionValue, useTransform } from '
 import { useApp } from '../../context/AppContext'
 import { useAuth } from '../../context/AuthContext'
 import { CameraIcon, ChevronRightIcon, PlusIcon, TrashIcon } from '../ui/Icon'
+import * as backupService from '../../services/backupService'
+import { backupFilename, totalRows } from '../../lib/backup'
+import { downloadJson } from '../../lib/download'
 import AvatarCircle from '../ui/AvatarCircle'
 import BottomSheet from '../ui/BottomSheet'
 import PasswordForm from '../Auth/PasswordForm'
@@ -83,6 +86,26 @@ export default function Settings() {
     resetHousehold,
   } = useApp()
   const { signOut, session, profile, updateProfileName, updateAvatar } = useAuth()
+
+  // Backup: laeuft kurz, deshalb ein eigener Zustand statt eines stummen
+  // Knopfes. Erfolg wird mit der Zeilenzahl bestaetigt — so sieht man, dass
+  // wirklich etwas drin ist.
+  const [backupBusy, setBackupBusy] = useState(false)
+  const [backupNote, setBackupNote] = useState<string | null>(null)
+
+  const runBackup = async () => {
+    if (backupBusy) return
+    setBackupBusy(true)
+    setBackupNote(null)
+    const { file, error } = await backupService.createBackup(session?.user.email ?? null)
+    setBackupBusy(false)
+    if (error || !file) {
+      setBackupNote(error ?? 'Backup fehlgeschlagen.')
+      return
+    }
+    downloadJson(backupFilename(), file)
+    setBackupNote(`${totalRows(file).toLocaleString('de-DE')} Zeilen gesichert.`)
+  }
 
   const [view, setView]                       = useState<SettingsView>('list')
   const [myName, setMyName]                   = useState('')
@@ -258,6 +281,21 @@ export default function Settings() {
             className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50`}
           >
             <span className="text-[15px] font-medium text-zinc-900">Passwort ändern</span>
+          </button>
+          {sep}
+          <button
+            onClick={() => void runBackup()}
+            disabled={backupBusy}
+            className={`${rowCls} w-full transition-colors duration-100 active:bg-zinc-50 disabled:opacity-50`}
+          >
+            <span className="min-w-0 text-left">
+              <span className="block text-[15px] font-medium text-zinc-900">
+                {backupBusy ? 'Backup läuft …' : 'Backup jetzt'}
+              </span>
+              <span className="mt-0.5 block text-[12px] leading-snug text-zinc-400">
+                {backupNote ?? 'Alles als JSON-Datei in deinen Download-Ordner'}
+              </span>
+            </span>
           </button>
           {sep}
           <button
